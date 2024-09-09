@@ -84,11 +84,12 @@ struct CollectiveMainloopFwd {
 
     using Element = typename Ktraits::Element;
     using TileShape_MNK = typename Ktraits::TileShape_MNK;
+    using TileShape_MNK_V = typename Ktraits::TileShape_MNK_V;
     using ClusterShape = typename Ktraits::ClusterShape_MNK;
 
     static constexpr int kStages = Ktraits::kStages;
-    static constexpr int kHeadDim = Ktraits::kHeadDim;    
-
+    static constexpr int kQKHeadDim = Ktraits::kQKHeadDim;    
+    static constexpr int kVHeadDim = Ktraits::kVHeadDim; 
     using GmemTiledCopyQ = cute::SM90_TMA_LOAD;
     using GmemTiledCopyKV = decltype(cutlass::gemm::collective::detail::sm90_cluster_shape_to_tma_atom(shape<0>(ClusterShape{})));
     
@@ -128,7 +129,7 @@ struct CollectiveMainloopFwd {
             typename Seqlen_traits::StrideT{}
         ),
         take<0, 2>(SmemLayoutV{}),
-        select<1, 2>(TileShape_MNK{}),
+        select<1, 2>(TileShape_MNK_V{}),
         size<0>(ClusterShape{}))); // mcast along M mode for this N load, if any
 
     static constexpr int NumMmaThreads = size(typename Ktraits::TiledMma0{});
@@ -140,11 +141,11 @@ struct CollectiveMainloopFwd {
     // Set the bytes transferred in this TMA transaction (may involve multiple issues)
     static constexpr uint32_t TmaTransactionBytesQ = static_cast<uint32_t>(size(SmemLayoutQ{}) * cutlass::sizeof_bits_v<Element> / 8);
     static constexpr uint32_t TmaTransactionBytesK = static_cast<uint32_t>(size(take<0, 2>(SmemLayoutK{})) * cutlass::sizeof_bits_v<Element> / 8);
-
+    static constexpr uint32_t TmaTransactionBytesV = static_cast<uint32_t>(size(take<0, 2>(SmemLayoutV{})) * cutlass::sizeof_bits_v<Element> / 8);
     // static constexpr bool UseSchedulerBarrier = kHeadDim <= 128;
     static constexpr bool UseSchedulerBarrier =
-        cutlass::sizeof_bits_v<Element> == 8 ? kHeadDim >= 128
-                                             : kHeadDim <= 128;    
+        cutlass::sizeof_bits_v<Element> == 8 ? kQKHeadDim >= 128
+                                             : kQKHeadDim <= 128;  //TODO: check this, use kQKHeadDim instead of kVHeadDim  
 
     // Host side kernel arguments
     struct Arguments {
@@ -197,7 +198,7 @@ struct CollectiveMainloopFwd {
             GmemTiledCopyKV{},
             mV,
             SmemLayoutV{}(_, _, _0{}),
-            select<1, 2>(TileShape_MNK{}),
+            select<1, 2>(TileShape_MNK_V{}),
             size<0>(ClusterShape{})); // mcast along M mode for this N load, if any
         return {args.layout_Q, args.layout_K, args.layout_V,
                 cutlass::FastDivmod(cute::ceil_div(get<2>(args.layout_Q.shape()), get<2>(args.layout_K.shape()))),
@@ -269,7 +270,7 @@ struct CollectiveMainloopFwd {
         Tensor gK = seqlen_traits_k.get_local_tile_tensor(
             mK, select<1, 2>(TileShape_MNK{}), bidh_kv, bidb);  // (N, K, _)
         Tensor gV = seqlen_traits_k.get_local_tile_tensor(
-            mV, select<1, 2>(TileShape_MNK{}), bidh_kv, bidb);  // (N, K, _)
+            mV, select<1, 2>(TileShape_MNK_V{}), bidh_kv, bidb);  // (N, K, _)
 
         Tensor sQ_x = make_tensor(sQ.data(), make_layout(sQ.layout(), Layout<_1>{}));
         Tensor gQ_x = make_tensor(gQ.data(), make_layout(gQ.layout(), Layout<_1>{}));
@@ -393,7 +394,7 @@ struct CollectiveMainloopFwd {
         Tensor gK = seqlen_traits_k.get_local_tile_tensor(
             mK, select<1, 2>(TileShape_MNK{}), bidh_kv, bidb);  // (N, K, _)
         Tensor gV = seqlen_traits_k.get_local_tile_tensor(
-            mV, select<1, 2>(TileShape_MNK{}), bidh_kv, bidb);  // (N, K, _)
+            mV, select<1, 2>(TileShape_MNK_V{}), bidh_kv, bidb);  // (N, K, _)
 
         Tensor sQ_x = make_tensor(sQ.data(), make_layout(sQ.layout(), Layout<_1>{}));
         Tensor gQ_x = make_tensor(gQ.data(), make_layout(gQ.layout(), Layout<_1>{}));
@@ -691,7 +692,6 @@ struct CollectiveMainloopFwd {
         warp_scheduler_barrier_sync();
         flash::gemm</*zero_init=*/true, /*wg_wait=*/-1>(tiled_mma0, tSrQ, tSrK(_, _, _, smem_pipe_read_k.index()), tSrS);
         warp_scheduler_barrier_arrive();
-    
         if (work_idx != 0) {
             int lane_predicate = cute::elect_one_sync();
             if (cutlass::canonical_warp_idx_sync() == Ktraits::kNWarps - 1 && lane_predicate) {
@@ -763,7 +763,6 @@ struct CollectiveMainloopFwd {
             ++smem_pipe_read_v;
             cute::copy(make_tensor(convert_type<Element>(tSrS).data(), convert_layout_acc_Aregs<typename Ktraits::TiledMma1>(tSrS.layout())), tOrP);
         }
-
         #pragma unroll 1
         for (; n_block > 0; --n_block) {
             Tensor tSrS = partition_fragment_C(tiled_mma0, select<0, 1>(TileShape_MNK{}));
@@ -995,12 +994,12 @@ struct CollectiveMainloopFwd {
             pipeline_vt.consumer_release(smem_pipe_release);
             ++smem_pipe_release;
         } else {
-            if constexpr (kHeadDim == 128) { warp_scheduler_barrier_sync(); }
+            if constexpr (kVHeadDim == 128) { warp_scheduler_barrier_sync(); } // TODO: check if use kQKHeadDim
             CUTLASS_PRAGMA_NO_UNROLL
             for (; n_block >= 0; --n_block) {
                 Tensor tSrS = partition_fragment_C(tiled_mma0, select<0, 1>(TileShape_MNK{}));
                 consumer_wait(pipeline_k, smem_pipe_read);
-                if constexpr (kHeadDim == 256) { warp_scheduler_barrier_sync(); }
+                if constexpr (kVHeadDim == 256) { warp_scheduler_barrier_sync(); } // TODO: check if use kQKHeadDim
                 flash::gemm</*zero_init=*/true, /*wg_wait=*/0>(tiled_mma0, tSrQ, tSrK(_, _, _, smem_pipe_read.index()), tSrS);
                 warp_scheduler_barrier_arrive();
                 pipeline_k.consumer_release(smem_pipe_read);
@@ -1012,12 +1011,12 @@ struct CollectiveMainloopFwd {
                 permute_regs_A_to_C(tOrP);
 
                 consumer_wait(pipeline_vt, smem_pipe_read);
-                if constexpr (kHeadDim == 128) { warp_scheduler_barrier_sync(); }
+                if constexpr (kVHeadDim == 128) { warp_scheduler_barrier_sync(); }// TODO: check if use kQKHeadDim
                 flash::gemm</*zero_init=*/false, /*wg_wait=*/0>(tiled_mma1, tOrP, tOrV(_, _, _, smem_pipe_read.index()), tOrO);
                 pipeline_vt.consumer_release(smem_pipe_read);
                 ++smem_pipe_read;
             }
-            if constexpr (kHeadDim == 128) { warp_scheduler_barrier_arrive(); }
+            if constexpr (kVHeadDim == 128) { warp_scheduler_barrier_arrive(); }// TODO: check if use kQKHeadDim
         }
         cutlass::arch::NamedBarrier::arrive(NumMmaThreads + cutlass::NumThreadsPerWarpGroup, static_cast<int>(FwdNamedBarriers::QueryEmpty) /*id*/);
         cute::copy(softmax.template finalize</*Check_inf=*/Is_causal>(tSrS, shared_storage.descale_v), scores_scale);

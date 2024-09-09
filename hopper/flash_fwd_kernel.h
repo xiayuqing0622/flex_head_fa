@@ -31,11 +31,11 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
                     CUTE_GRID_CONSTANT typename TileScheduler::Params const scheduler_params,
                     Seqlen_traits seqlen_traits_q, Seqlen_traits seqlen_traits_k
                     ) {
-
     using Element = typename Ktraits::Element;
     using ElementAccum = typename Ktraits::ElementAccum;
     using SoftType = ElementAccum;
     using TileShape_MNK = typename Ktraits::TileShape_MNK;
+    using TileShape_MNK_V = typename Ktraits::TileShape_MNK_V;
     using ClusterShape = typename Ktraits::ClusterShape_MNK;
 
     static_assert(Ktraits::Is_WS);
@@ -69,22 +69,28 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
     // Obtain warp index
     int const warp_group_thread_idx = threadIdx.x % cutlass::NumThreadsPerWarpGroup;
 
-    PipelineParams pipeline_params;
-    pipeline_params.transaction_bytes = CollectiveMainloop::TmaTransactionBytesK;
+    PipelineParams pipeline_paramsK, pipeline_paramsV;
+    pipeline_paramsK.transaction_bytes = CollectiveMainloop::TmaTransactionBytesK;
+    pipeline_paramsV.transaction_bytes = CollectiveMainloop::TmaTransactionBytesV;
     int warp_group_idx = cutlass::canonical_warp_group_idx();
-    pipeline_params.role = warp_group_idx == 0
+    pipeline_paramsK.role = warp_group_idx == 0
         ? MainloopPipeline::ThreadCategory::Producer
         : MainloopPipeline::ThreadCategory::Consumer;
-    pipeline_params.is_leader = warp_group_thread_idx == 0;
-    pipeline_params.num_consumers = NumMmaThreads;
+    pipeline_paramsV.role = warp_group_idx == 0
+        ? MainloopPipeline::ThreadCategory::Producer
+        : MainloopPipeline::ThreadCategory::Consumer;
+    pipeline_paramsK.is_leader = warp_group_thread_idx == 0;
+    pipeline_paramsV.is_leader = warp_group_thread_idx == 0;
+    pipeline_paramsK.num_consumers = NumMmaThreads;
+    pipeline_paramsV.num_consumers = NumMmaThreads;
 
     if (warp_idx == 0 && lane_predicate) {
         shared_storage.barrier_Q.init(1 /*numThreads*/);
         shared_storage.barrier_O.init(size(ClusterShape{}) /*numThreads*/);
     }
     // We're counting on pipeline_k to call cutlass::arch::fence_barrier_init();
-    MainloopPipeline pipeline_k(shared_storage.pipeline_k, pipeline_params, ClusterShape{});
-    MainloopPipeline pipeline_v(shared_storage.pipeline_v, pipeline_params, ClusterShape{});
+    MainloopPipeline pipeline_k(shared_storage.pipeline_k, pipeline_paramsK, ClusterShape{});
+    MainloopPipeline pipeline_v(shared_storage.pipeline_v, pipeline_paramsV, ClusterShape{});
 
     CollectiveMainloop collective_mainloop;
     CollectiveEpilogue collective_epilogue;
@@ -156,7 +162,7 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
              work_tile_info.is_valid(scheduler_params);
              work_tile_info = scheduler.template get_next_work</*IsProducer=*/false>(scheduler_params, work_tile_info)) {
             // Attention output (GEMM-II) accumulator.
-            Tensor tOrO = partition_fragment_C(tiled_mma1, select<0, 2>(TileShape_MNK{}));
+            Tensor tOrO = partition_fragment_C(tiled_mma1, select<0, 2>(TileShape_MNK_V{}));
             flash::Softmax<2 * (2 * kBlockM / NumMmaThreads)> softmax(mainloop_params.softmax_scale_log2);
 
             auto block_coord = work_tile_info.get_block_coord(scheduler_params);
@@ -195,12 +201,12 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
                         CUTE_GRID_CONSTANT typename TileScheduler::Params const scheduler_params,
                         Seqlen_traits seqlen_traits_q, Seqlen_traits seqlen_traits_k
                         ) {
-
     using Element = typename Ktraits::Element;
     static_assert(cutlass::sizeof_bits_v<Element> == 8);
     using ElementAccum = typename Ktraits::ElementAccum;
     using SoftType = ElementAccum;
     using TileShape_MNK = typename Ktraits::TileShape_MNK;
+    using TileShape_MNK_V = typename Ktraits::TileShape_MNK_V;
     using ClusterShape = typename Ktraits::ClusterShape_MNK;
 
     static_assert(Ktraits::Is_WS);
@@ -212,7 +218,7 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
     static constexpr int kBlockM = Ktraits::kBlockM;
     // static constexpr int kBlockN = Ktraits::kBlockN;
     // static constexpr int kHeadDim = Ktraits::kHeadDim;
-    static constexpr bool Delay_V_release = Is_causal && Ktraits::kHeadDim == 128;    
+    static constexpr bool Delay_V_release = Is_causal && Ktraits::kQKHeadDim == 128; // TODO: check if need to verify kVHeadDim == 128
     static constexpr bool Use_max_offset = true;
 
     using CollectiveMainloop = CollectiveMainloopFwd<Ktraits, Is_causal, Seqlen_traits>;
@@ -345,7 +351,7 @@ __global__ void __launch_bounds__(Ktraits::kNWarps * cutlass::NumThreadsPerWarp,
              work_tile_info.is_valid(scheduler_params);
              work_tile_info = scheduler.template get_next_work</*IsProducer=*/false>(scheduler_params, work_tile_info)) {
             // Attention output (GEMM-II) accumulator.
-            Tensor tOrO = partition_fragment_C(tiled_mma1, select<0, 2>(TileShape_MNK{}));
+            Tensor tOrO = partition_fragment_C(tiled_mma1, select<0, 2>(TileShape_MNK_V{}));
             flash::Softmax<2 * (2 * kBlockM / NumMmaThreads), Use_max_offset> softmax(shared_storage.softmax_scale_qk_log2);
 
             auto block_coord = work_tile_info.get_block_coord(scheduler_params);
