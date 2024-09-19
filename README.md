@@ -7,6 +7,7 @@ we have supported:
 - FlashAttention-2 with QKHeadDim=96, VHeadDim=192
 - FlashAttention-2 with QKHeadDim=128, VHeadDim=256
 - FlashAttention-2 with QKHeadDim=192, VHeadDim=128
+- FLashAttention-2 with not equal num_heads_k and num_heads_v, such as (num_heads_q, num_heads_k, num_heads_v) = (32, 4, 16)
 
 For headdim not supported, you can use the autotuner to generate the implementation. Details are in `autotuner.md`.
 
