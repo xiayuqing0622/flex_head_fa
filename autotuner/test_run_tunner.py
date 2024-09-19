@@ -12,6 +12,10 @@ device = 'cuda:0'
 dtype = torch.bfloat16
 dropout_p = 0.0 # 0.0
 
+# pad headdim to multiple of 32
+headdim = headdim + (32 - headdim % 32) % 32
+v_headdim = v_headdim + (32 - v_headdim % 32) % 32
+
 q = torch.randn(batch_size, seqlen, nheads, headdim, device=device, dtype=dtype,
                               requires_grad=True)
 k = torch.randn(batch_size, seqlen, nheads, headdim, device=device, dtype=dtype,
