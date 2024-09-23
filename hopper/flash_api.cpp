@@ -245,6 +245,8 @@ void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split
                 run_mha_fwd_<cutlass::bfloat16_t, 256, 256>(params, stream);
             } else if (params.d == 128 && params.vd == 256) {
                 run_mha_fwd_<cutlass::bfloat16_t, 128, 256>(params, stream);
+            } else if (params.d == 32 && params.vd == 64) {
+                run_mha_fwd_<cutlass::bfloat16_t, 32, 64>(params, stream);
             }
         } else {
             if (params.d == 64 && params.vd == 64) {
@@ -255,6 +257,8 @@ void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split
                 run_mha_fwd_<cutlass::half_t, 256, 256>(params, stream);
             } else if (params.d == 128 && params.vd == 256) {
                 run_mha_fwd_<cutlass::half_t, 128, 256>(params, stream);
+            } else if (params.d == 32 && params.vd == 64) {
+                run_mha_fwd_<cutlass::half_t, 32, 64>(params, stream);
             }
         }
     } else {
@@ -336,7 +340,7 @@ mha_fwd(at::Tensor &q,         // batch_size x seqlen_q x num_heads x head_size
 
     TORCH_CHECK(num_heads % num_heads_k == 0, "Number of heads in key/value must divide number of heads in query");
 
-    TORCH_CHECK(head_size_og == 64 || head_size_og == 128 || head_size_og == 256, "Only support qk head size 64, 128, and 256 for now");
+    TORCH_CHECK(head_size_og == 32 || head_size_og == 64 || head_size_og == 128 || head_size_og == 256, "Only support qk head size 64, 128, and 256 for now");
     TORCH_CHECK(v_head_size_og == 64 || v_head_size_og == 128 || v_head_size_og == 256, "Only support v head size 64, 128, and 256 for now");
     CHECK_SHAPE(q, batch_size, seqlen_q, num_heads, head_size_og);
     CHECK_SHAPE(k, batch_size, seqlen_k, num_heads_k, head_size_og);
@@ -644,7 +648,9 @@ void run_mha_bwd(Flash_bwd_params &params, cudaStream_t stream) {
   //     });
   // });
   if (!params.is_bf16) {
-    if (params.d <= 64 && params.vd <= 64) {
+    if (params.d <= 32 && params.vd <= 64) {
+      run_mha_bwd_<cutlass::half_t, 32, 64>(params, stream);
+    } else if (params.d <= 64 && params.vd <= 64) {
       run_mha_bwd_<cutlass::half_t, 64, 64>(params, stream);
     } else if (params.d <= 96 && params.vd <= 96) {
       run_mha_bwd_<cutlass::half_t, 96, 96>(params, stream);
@@ -652,7 +658,9 @@ void run_mha_bwd(Flash_bwd_params &params, cudaStream_t stream) {
       run_mha_bwd_<cutlass::half_t, 128, 128>(params, stream);
     }
   } else {
-    if (params.d <= 64 && params.vd <= 64) {
+    if (params.d <= 32 && params.vd <= 64) {
+      run_mha_bwd_<cutlass::bfloat16_t, 32, 64>(params, stream);
+    } else if (params.d <= 64 && params.vd <= 64) {
       run_mha_bwd_<cutlass::bfloat16_t, 64, 64>(params, stream);
     } else if (params.d <= 96 && params.vd <= 96) {
       run_mha_bwd_<cutlass::bfloat16_t, 96, 96>(params, stream);

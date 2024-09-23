@@ -126,6 +126,11 @@ if not SKIP_CUDA_BUILD:
         "flash_fwd_hdim64_e4m3_sm90.cu",
         "flash_fwd_hdim128_e4m3_sm90.cu",
         "flash_fwd_hdim256_e4m3_sm90.cu",
+
+        "flash_fwd_qkdim32_vdim64_bf16_sm90.cu",
+        "flash_bwd_qkdim32_vdim64_bf16_sm90.cu",
+        "flash_fwd_qkdim32_vdim64_fp16_sm90.cu",
+        "flash_bwd_qkdim32_vdim64_fp16_sm90.cu",
         # "flash_bwd_qkdim128_vdim256_bf16_sm90.cu",
         "flash_fwd_qkdim128_vdim256_bf16_sm90.cu",
         # "flash_bwd_qkdim128_vdim256_fp16_sm90.cu",
