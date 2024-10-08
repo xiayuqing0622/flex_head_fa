@@ -37,9 +37,9 @@ from flash_attn import flash_attn_func
 We are also developing Customized FlashAttention based on the lastest FLashAttention-3.
 Currently, besides all configurations in FlashAttention-3, we also support
 
-FlashAttention-3 with QKHeadDim=32, VHeadDim=64
+- FlashAttention-3 with QKHeadDim=32, VHeadDim=64
 
-FlashAttention-3 forward + FlashAttention-2 backward with QKHeadDim=128, VHeadDim=256 (FlashAttention-3 backward is under development)
+- FlashAttention-3 forward + FlashAttention-2 backward with QKHeadDim=128, VHeadDim=256 (FlashAttention-3 backward is under development)
 
 Try it with:
 
