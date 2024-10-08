@@ -1,7 +1,8 @@
 # Customized FlashAttention
 
 This repository provides Customized FlashAttention based on the official implementation.
-we have supported:
+
+All configurations in FlashAttention-2 are supported. Besides, we have supported:
 - FlashAttention-2 with QKHeadDim=32, VHeadDim=64
 - FlashAttention-2 with QKHeadDim=64, VHeadDim=128
 - FlashAttention-2 with QKHeadDim=96, VHeadDim=192
@@ -19,6 +20,28 @@ Currently, we do not provide prebuilt library, you need to compile from source.
 
 Users can modify `headdim.json` before compile from source, to select the (dim_qk, dim_v) they needed. 
 Or you can just leave `headdim.json` untouched, and compile all the supported config.
+
+To install Customized FlashAttention based on FLashAttention-2, run:
+```sh
+python setup.py install
+```
+The usage of it remains the same as FLashAttention-2:
+```python
+from flash_attn import flash_attn_func
+```
+
+We are also developing Customized FlashAttention based on the lastest FLashAttention-3. 
+Currently, we support forward using FLashAttention-3 and backward with FLashAttention-2.
+Try it with:
+```sh
+cd hopper
+python setup.py install
+```
+Usage:
+```python
+from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func
+```
+
 
 ## Performance of Customized FlashAttention
 
