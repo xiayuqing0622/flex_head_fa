@@ -1,4 +1,4 @@
-#python test.py  --test_bwd --causal --check_pytorch --debug --batch=4 --dim_qk=128 --dim_v=64 --bf16 --iters=1000
+#python test.py  --test_bwd --causal --check_pytorch --debug --batch=4 --dim_qk=128 --dim_v=256 --bf16 --iters=1000
 import torch
 import time
 import torch.nn.functional as F
@@ -19,8 +19,8 @@ import math
 # from customized_flash_attn import flash_attn_func
 # from flash_attn import flash_attn_func as flash_attn2_func
 from flash_attn import flash_attn_func 
-# from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func_hopper
-from flash_attn_interface import flash_attn_func as flash_attn_func_hopper
+from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func_hopper
+# from flash_attn_interface import flash_attn_func as flash_attn_func_hopper
 # torch.manual_seed(55)
 
 
@@ -128,8 +128,8 @@ start = torch.cuda.Event(enable_timing=True)
 end = torch.cuda.Event(enable_timing=True)
 start.record()
 for i in range(iters):
-    output = flash_attn_func_hopper(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal).transpose(1,2)
-    # output = (flash_attn_func(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal)).transpose(1,2)
+    # output = flash_attn_func_hopper(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal).transpose(1,2)
+    output = (flash_attn_func(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal)).transpose(1,2)
     
     # output = torch.nn.functional.scaled_dot_product_attention(query1, key1, value1, is_causal=args.causal)
     if args.test_bwd:
