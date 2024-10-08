@@ -31,7 +31,7 @@ from flash_attn import flash_attn_func
 ```
 
 We are also developing Customized FlashAttention based on the lastest FLashAttention-3. 
-Currently, we support forward using FLashAttention-3 and backward with FLashAttention-2.
+Currently, we support forward using FLashAttention-3 and backward using FLashAttention-2.
 Try it with:
 ```sh
 cd hopper
