@@ -3,6 +3,7 @@
 This repository provides Customized FlashAttention based on the official implementation.
 
 All configurations in FlashAttention-2 are supported. Besides, we have supported:
+
 - FlashAttention-2 with QKHeadDim=32, VHeadDim=64
 - FlashAttention-2 with QKHeadDim=64, VHeadDim=128
 - FlashAttention-2 with QKHeadDim=96, VHeadDim=192
@@ -18,30 +19,41 @@ Currently, we do not provide prebuilt library, you need to compile from source.
 
 ## Usage
 
-Users can modify `headdim.json` before compile from source, to select the (dim_qk, dim_v) they needed. 
+Users can modify `headdim.json` before compile from source, to select the (dim_qk, dim_v) they needed.
 Or you can just leave `headdim.json` untouched, and compile all the supported config.
 
 To install Customized FlashAttention based on FLashAttention-2, run:
+
 ```sh
 python setup.py install
 ```
+
 The usage of it remains the same as FLashAttention-2:
+
 ```python
 from flash_attn import flash_attn_func
 ```
 
-We are also developing Customized FlashAttention based on the lastest FLashAttention-3. 
-Currently, we support forward using FLashAttention-3 and backward using FLashAttention-2.
+We are also developing Customized FlashAttention based on the lastest FLashAttention-3.
+Currently, besides all configurations in FlashAttention-3, we also support
+
+FlashAttention-3 with QKHeadDim=32, VHeadDim=64
+
+FlashAttention-3 forward + FlashAttention-2 backward with QKHeadDim=128, VHeadDim=256 (FlashAttention-3 backward is under development)
+
 Try it with:
+
 ```sh
 cd hopper
 python setup.py install
 ```
-Usage:
-```python
-from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func
-```
 
+Usage:
+
+```python
+from flash_attn_interface import flash_attn_func # FlashAttention-3 forward+backward
+from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func # FlashAttention-3 forward + FlashAttention-2 backward 
+```
 
 ## Performance of Customized FlashAttention
 
@@ -54,26 +66,27 @@ We display CustomFlashAttention speedup using these parameters:
 - Batch size set to 16k / seqlen.
 
 ### Speedup
+
 ![Custom-flash-attn](assets/Customflash2_a100_fwd_bwd_benchmark.png)
 
 # FlashAttention
+
 This repository provides the official implementation of FlashAttention and
 FlashAttention-2 from the
 following papers.
 
-**FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness**  
-Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré  
-Paper: https://arxiv.org/abs/2205.14135  
+**FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness**
+Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré
+Paper: https://arxiv.org/abs/2205.14135
 IEEE Spectrum [article](https://spectrum.ieee.org/mlperf-rankings-2022) about our submission to the MLPerf 2.0 benchmark using FlashAttention.
 ![FlashAttention](assets/flashattn_banner.jpg)
 
-**FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning**  
+**FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning**
 Tri Dao
 
 Paper: https://tridao.me/publications/flash2/flash2.pdf
 
 ![FlashAttention-2](assets/flashattention_logo.png)
-
 
 ## Usage
 
@@ -84,9 +97,9 @@ contains a partial list of places where FlashAttention is being used.
 FlashAttention and FlashAttention-2 are free to use and modify (see LICENSE).
 Please cite and credit FlashAttention if you use it.
 
-
 ## FlashAttention-3 beta release
-FlashAttention-3 is optimized for Hopper GPUs (e.g. H100). 
+
+FlashAttention-3 is optimized for Hopper GPUs (e.g. H100).
 
 Blogpost: https://tridao.me/blog/2024/flash3/
 
@@ -98,9 +111,11 @@ This is a beta release for testing / benchmarking before we integrate that with
 the rest of the repo.
 
 Currently released:
+
 - FP16 forward and backward
 
 Coming soon in the next couple of days / next week:
+
 - BF16
 - Variable length (FP16, BF16)
 - FP8 forward.
@@ -108,38 +123,42 @@ Coming soon in the next couple of days / next week:
 Requirements: H100 / H800 GPU, CUDA >= 12.3.
 
 To install:
+
 ```sh
 cd hopper
 python setup.py install
 ```
+
 To run the test:
+
 ```sh
 export PYTHONPATH=$PWD
 pytest -q -s test_flash_attn.py
 ```
 
-
-
 ## Installation and features
+
 **Requirements:**
+
 - CUDA toolkit or ROCm toolkit
 - PyTorch 1.12 and above.
 - `packaging` Python package (`pip install packaging`)
 - `ninja` Python package (`pip install ninja`) *
 - Linux. Might work for Windows starting v2.3.2 (we've seen a few positive [reports](https://github.com/Dao-AILab/flash-attention/issues/595)) but Windows compilation still requires more testing. If you have ideas on how to set up prebuilt CUDA wheels for Windows, please reach out via Github issue.
 
-\* Make sure that `ninja` is installed and that it works correctly (e.g. `ninja
---version` then `echo $?` should return exit code 0). If not (sometimes `ninja
---version` then `echo $?` returns a nonzero exit code), uninstall then reinstall
+\* Make sure that `ninja` is installed and that it works correctly (e.g. `ninja --version` then `echo $?` should return exit code 0). If not (sometimes `ninja --version` then `echo $?` returns a nonzero exit code), uninstall then reinstall
 `ninja` (`pip uninstall -y ninja && pip install ninja`). Without `ninja`,
 compiling can take a very long time (2h) since it does not use multiple CPU
 cores. With `ninja` compiling takes 3-5 minutes on a 64-core machine using CUDA toolkit.
 
 **To install:**
+
 ```sh
 pip install flash-attn --no-build-isolation
 ```
+
 Alternatively you can compile from source:
+
 ```sh
 python setup.py install
 ```
@@ -148,6 +167,7 @@ If your machine has less than 96GB of RAM and lots of CPU cores, `ninja` might
 run too many parallel compilation jobs that could exhaust the amount of RAM. To
 limit the number of parallel compilation jobs, you can set the environment
 variable `MAX_JOBS`:
+
 ```sh
 MAX_JOBS=4 pip install flash-attn --no-build-isolation
 ```
@@ -155,7 +175,9 @@ MAX_JOBS=4 pip install flash-attn --no-build-isolation
 **Interface:** `src/flash_attention_interface.py`
 
 ### NVIDIA CUDA Support
+
 **Requirements:**
+
 - CUDA 11.7 and above.
 
 We recommend the
@@ -163,6 +185,7 @@ We recommend the
 container from Nvidia, which has all the required tools to install FlashAttention.
 
 FlashAttention-2 with CUDA currently supports:
+
 1. Ampere, Ada, or Hopper GPUs (e.g., A100, RTX 3090, RTX 4090, H100). Support for Turing
    GPUs (T4, RTX 2080) is coming soon, please use FlashAttention 1.x for Turing
    GPUs for now.
@@ -170,9 +193,11 @@ FlashAttention-2 with CUDA currently supports:
 3. All head dimensions up to 256. ~~Head dim > 192 backward requires A100/A800 or H100/H800~~. Head dim 256 backward now works on consumer GPUs (if there's no dropout) as of flash-attn 2.5.5.
 
 ### AMD ROCm Support
+
 ROCm version uses [composable_kernel](https://github.com/ROCm/composable_kernel) as the backend. It provides the implementation of FlashAttention-2.
 
 **Requirements:**
+
 - ROCm 6.0 and above.
 
 We recommend the
@@ -180,15 +205,16 @@ We recommend the
 container from ROCm, which has all the required tools to install FlashAttention.
 
 FlashAttention-2 with ROCm currently supports:
+
 1. MI200 or MI300 GPUs.
 2. Datatype fp16 and bf16
 3. Forward's head dimensions up to 256. Backward head dimensions up to 128.
-
 
 ## How to use FlashAttention
 
 The main functions implement scaled dot product attention (softmax(Q @ K^T *
 softmax_scale) @ V):
+
 ```python
 from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
 ```
@@ -352,48 +378,53 @@ includes QKV projection, output projection), see the MHA [implementation](https:
 ## Changelog
 
 ### 2.0: Complete rewrite, 2x faster
+
 Upgrading from FlashAttention (1.x) to FlashAttention-2
 
 These functions have been renamed:
+
 - `flash_attn_unpadded_func` -> `flash_attn_varlen_func`
 - `flash_attn_unpadded_qkvpacked_func` -> `flash_attn_varlen_qkvpacked_func`
 - `flash_attn_unpadded_kvpacked_func` -> `flash_attn_varlen_kvpacked_func`
 
 If the inputs have the same sequence lengths in the same batch, it is simpler
 and faster to use these functions:
+
 ```python
 flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False)
 ```
+
 ```python
 flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False)
 ```
+
 ### 2.1: Change behavior of causal flag
 
 If seqlen_q != seqlen_k and causal=True, the causal mask is aligned to the
 bottom right corner of the attention matrix, instead of the top-left corner.
 
 For example, if seqlen_q = 2 and seqlen_k = 5, the causal mask (1 = keep, 0 =
-masked out) is:  
-v2.0:  
-    1 0 0 0 0  
-    1 1 0 0 0  
-v2.1:  
-    1 1 1 1 0  
-    1 1 1 1 1  
+masked out) is:
+v2.0:
+    1 0 0 0 0
+    1 1 0 0 0
+v2.1:
+    1 1 1 1 0
+    1 1 1 1 1
 
-If seqlen_q = 5 and seqlen_k = 2, the causal mask is:  
-v2.0:  
-    1 0  
-    1 1  
-    1 1  
-    1 1  
-    1 1  
-v2.1:  
-    0 0  
-    0 0  
-    0 0  
-    1 0  
-    1 1  
+If seqlen_q = 5 and seqlen_k = 2, the causal mask is:
+v2.0:
+    1 0
+    1 1
+    1 1
+    1 1
+    1 1
+v2.1:
+    0 0
+    0 0
+    0 0
+    1 0
+    1 1
 If the row of the mask is all zero, the output will be zero.
 
 ### 2.2: Optimize for inference
@@ -436,14 +467,18 @@ Thanks to @Narsil and @lucidrains for this contribution.
 We present expected speedup (combined forward + backward pass) and memory savings from using FlashAttention against PyTorch standard attention, depending on sequence length, on different GPUs (speedup depends on memory bandwidth - we see more speedup on slower GPU memory).
 
 We currently have benchmarks for these GPUs:
+
 * [A100](#a100)
 * [H100](#h100)
+
 <!-- * [RTX 3090](#rtx-3090) -->
+
 <!-- * [T4](#t4) -->
 
 ### A100
 
 We display FlashAttention speedup using these parameters:
+
 * Head dimension 64 or 128, hidden dimension 2048 (i.e. either 32 or 16 heads).
 * Sequence length 512, 1k, 2k, 4k, 8k, 16k.
 * Batch size set to 16k / seqlen.
@@ -492,8 +527,8 @@ We also have an experimental implementation in Triton that support attention
 bias (e.g. ALiBi):
 https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_triton.py
 
-
 ## Tests
+
 We test that FlashAttention produces the same output and gradient as a reference
 implementation, up to some numerical tolerance. In particular, we check that the
 maximum numerical error of FlashAttention is at most twice the numerical error
@@ -501,9 +536,11 @@ of a baseline implementation in Pytorch (for different head dimensions, input
 dtype, sequence length, causal / non-causal).
 
 To run the tests:
+
 ```sh
 pytest -q -s tests/test_flash_attn.py
 ```
+
 ## When you encounter issues
 
 This new release of FlashAttention-2 has been tested on several GPT-style
@@ -512,13 +549,17 @@ models, mostly on A100 GPUs.
 If you encounter bugs, please open a GitHub Issue!
 
 ## Tests
+
 To run the tests:
+
 ```sh
 pytest tests/test_flash_attn_ck.py
 ```
 
 ## Citation
+
 If you use this codebase, or otherwise found our work valuable, please cite:
+
 ```
 @inproceedings{dao2022flashattention,
   title={Flash{A}ttention: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
