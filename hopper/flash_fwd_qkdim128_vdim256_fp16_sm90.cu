@@ -4,6 +4,6 @@
 #include "flash_fwd_launch_template.h"
 
 template<>
-void run_mha_fwd_<cutlass::bfloat16_t, 64, 64>(Flash_fwd_params &params, cudaStream_t stream) {
-    run_mha_fwd_hdim64<cutlass::bfloat16_t>(params, stream);
+void run_mha_fwd_<cutlass::half_t, 128, 256>(Flash_fwd_params &params, cudaStream_t stream) {
+    run_mha_fwd_qkdim128_vdim256<cutlass::half_t>(params, stream);
 }
