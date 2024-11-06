@@ -85,8 +85,9 @@ def debug(name,expect, actual, atol=1e-3, rtol=1e-3):
         max_indices  = torch.nonzero(diff == diff.max().item())
         first_index = tuple(max_indices[0].tolist())
         print(f"Index: {first_index}, expect: {expect[first_index]}, actual: {actual[first_index]}") 
-        # print(actual[0,0])
-        # print(expect[0,0])
+        # print(actual[3, 2, 1062, 128:])
+        # print(expect[3, 2, 1062, 128:])
+
         # if actual.shape[1] == 2:
         #     print(actual[0,1, :,:])
         #     print(expect[0,1, :,:])

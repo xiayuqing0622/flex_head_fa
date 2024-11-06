@@ -49,6 +49,12 @@ struct Flash_fwd_params : public Qkv_params {
     index_t o_row_stride;
     index_t o_head_stride;
 
+    // The stride between rows of Oaccum.
+    index_t oaccum_batch_stride;
+    index_t oaccum_row_stride;
+    index_t oaccum_head_stride;
+    index_t oaccum_split_stride;
+
     // The pointer to the P matrix.
     void * __restrict__ p_ptr;
 
@@ -58,6 +64,7 @@ struct Flash_fwd_params : public Qkv_params {
 
     // The dimensions.
     int b, seqlen_q, seqlen_k, seqlen_knew, d, vd, seqlen_q_rounded, seqlen_k_rounded, d_rounded, vd_rounded, rotary_dim, total_q, total_k;
+    int b_k;
 
     // The scaling factors for the kernel.
     float scale_softmax;
@@ -68,7 +75,9 @@ struct Flash_fwd_params : public Qkv_params {
     int * __restrict__ cu_seqlens_q;
     int * __restrict__ cu_seqlens_k;
 
-    // If provided, the actual length of each k sequence.
+    // If provided, the actual length of each q / o sequence.
+    int * __restrict__ seqused_q;
+    // If provided, the actual length of each k / v sequence.
     int * __restrict__ seqused_k;
 
     int *__restrict__ blockmask;
@@ -116,10 +125,9 @@ struct Flash_fwd_params : public Qkv_params {
     bool is_bf16;
     bool is_e4m3;
     bool is_causal;
-
-    // If is_seqlens_k_cumulative, then seqlen_k is cu_seqlens_k[bidb + 1] - cu_seqlens_k[bidb].
-    // Otherwise it's cu_seqlens_k[bidb], i.e., we use cu_seqlens_k to store the sequence lengths of K.
-    bool is_seqlens_k_cumulative;
+    bool is_local;
+    bool is_kv_cache;
+    bool use_gqa_packing;
 
     bool is_rotary_interleaved;
 
@@ -129,6 +137,7 @@ struct Flash_fwd_params : public Qkv_params {
     index_t alibi_slopes_batch_stride;
 
     bool unpadded_lse; // For varlen paths: LSE is in [nheads, total_seqlen_q] format instead of [b, nheads, seqlen_q].
+    bool seqlenq_ngroups_swapped;  // q has been transposed from (b, 1, (nheads_kv ngroups), d) to (b, ngroups, nheads_kv, d).
 
     int * __restrict__ tile_count_semaphore;
     float * __restrict__ descale_q_ptr;
@@ -184,4 +193,5 @@ struct Flash_bwd_params : public Flash_fwd_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<typename T, int QKHeaddim, int VHeaddim> void run_mha_fwd_(Flash_fwd_params &params, cudaStream_t stream);
+template<typename T, int QKHeaddim, int VHeaddim, int kBlockH> void run_mha_fwd_gqa_(Flash_fwd_params &params, cudaStream_t stream);
 template<typename T, int QKHeaddim, int VHeaddim> void run_mha_bwd_(Flash_bwd_params &params, cudaStream_t stream);

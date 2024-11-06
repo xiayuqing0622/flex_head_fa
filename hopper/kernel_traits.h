@@ -33,6 +33,42 @@ struct SharedStorageQKVO {
     };
 };
 
+// Use if Oaccum is too large for SharedStorageQKVO
+template <int kStages, class Gemm1Type, class Gemm2Type, class OutputType, class SmemLayoutQ,
+          class SmemLayoutK, class SmemLayoutV, class SmemLayoutO>
+struct SharedStorageQKVOaccum {
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutQ>> smem_q;    
+    union {    
+        struct {    
+            cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutK>> smem_k;
+            cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v;
+        };
+        cute::array_aligned<OutputType, cute::cosize_v<SmemLayoutO>> smem_o;
+    };
+    struct {
+        cutlass::arch::ClusterTransactionBarrier barrier_Q;
+        cutlass::arch::ClusterBarrier barrier_O;
+        typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_k;
+        typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_v;
+        int tile_count_semaphore;
+    };
+};
+
+// SharedStorage struct with no smem for O
+template <int kStages, class Gemm1Type, class Gemm2Type, class SmemLayoutQ,
+          class SmemLayoutK, class SmemLayoutV>
+struct SharedStorageQKV {
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutQ>> smem_q;
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutK>> smem_k;
+    cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v;
+    struct {
+        cutlass::arch::ClusterTransactionBarrier barrier_Q;
+        typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_k;
+        typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_v;
+        int tile_count_semaphore;
+    };
+};
+
 template <int kStages, class Gemm1Type, class Gemm2Type, class OutputType, class SmemLayoutQ,
           class SmemLayoutK, class SmemLayoutV, class SmemLayoutO>
 struct SharedStorageQKVOVt {
@@ -54,16 +90,67 @@ struct SharedStorageQKVOVt {
     int tile_count_semaphore;
     float softmax_scale_qk_log2;
     float descale_v;
+    bool seqlen_init_k;
+  };
+};
+
+// Use if Oaccum is too large for SharedStorageQKVOVt
+template <int kStages, class Gemm1Type, class Gemm2Type, class OutputType, class SmemLayoutQ,
+          class SmemLayoutK, class SmemLayoutV, class SmemLayoutO>
+struct SharedStorageQKVOVtaccum {
+  struct {
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutQ>> smem_q;
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutK>> smem_k;
+    union {
+        struct {
+            cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v;  
+            cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v_out;
+        };
+        cute::array_aligned<OutputType, cute::cosize_v<SmemLayoutO>> smem_o;
+    };
+  };
+  struct {    
+    cutlass::arch::ClusterTransactionBarrier barrier_Q;
+    cutlass::arch::ClusterBarrier barrier_O;
+    typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_k;
+    typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_v;
+    typename cutlass::PipelineAsync<kStages>::SharedStorage pipeline_vt;
+    int tile_count_semaphore;
+    float softmax_scale_qk_log2;
+    float descale_v;
+    bool seqlen_init_k;
+  };
+};
+
+template <int kStages, class Gemm1Type, class Gemm2Type, class SmemLayoutQ,
+          class SmemLayoutK, class SmemLayoutV>
+struct SharedStorageQKVVt {
+  struct {
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutQ>> smem_q;
+    cute::array_aligned<Gemm1Type, cute::cosize_v<SmemLayoutK>> smem_k;
+    cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v;  
+    cute::array_aligned<Gemm2Type, cute::cosize_v<SmemLayoutV>> smem_v_out;
+  };
+  struct {    
+    cutlass::arch::ClusterTransactionBarrier barrier_Q;
+    typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_k;
+    typename cutlass::PipelineTmaAsync<kStages>::SharedStorage pipeline_v;
+    typename cutlass::PipelineAsync<kStages>::SharedStorage pipeline_vt;
+    int tile_count_semaphore;
+    float softmax_scale_qk_log2;
+    float descale_v;
+    bool seqlen_init_k;
   };
 };
 
 // If Share_Q_K_smem is true, that forces Is_Q_in_regs to be true
 template<int kQKHeadDim_, int kVHeadDim_, int kBlockM_, int kBlockN_, int kNWarps_, int kStages_, bool Is_Q_in_regs_=false,
-         int kClusterM_ = 1, typename elem_type=cutlass::half_t>
+         int kClusterM_ = 1, typename elem_type=cutlass::half_t, bool Is_split_=false, int kBlockH_ = 1>
 struct Flash_fwd_kernel_traits {
     using Element = elem_type;
     using ElementAccum = float;
-    using OutputType = elem_type;
+    using FinalOutputType = elem_type;
+    using OutputType = std::conditional_t<Is_split_, float, FinalOutputType>;
     using index_t = int64_t;
 
     // The number of threads.
@@ -72,16 +159,18 @@ struct Flash_fwd_kernel_traits {
     static constexpr int NumProducerThreads = cutlass::NumThreadsPerWarp;
 
     static constexpr bool Is_Q_in_regs = Is_Q_in_regs_;
-    static_assert(kNWarps_ == 4 || kNWarps_ == 8 || kNWarps_ == 12 || kNWarps_ == 16);
-    static constexpr bool Is_WS = kNWarps_ >= 12;
+    static_assert(kNWarps_ == 8 || kNWarps_ == 12 || kNWarps_ == 16);
+    static constexpr bool Is_WS = true;
     static_assert(!(Is_WS && Is_Q_in_regs), "Warp-specialization does not support Q in registers");
 
     static constexpr int kBlockM = kBlockM_;
     static constexpr int kBlockN = kBlockN_;
+    static constexpr int kBlockH = kBlockH_;
     static constexpr int kQKHeadDim = kQKHeadDim_;
     static constexpr int kVHeadDim = kVHeadDim_;
     static_assert(kQKHeadDim % 32 == 0);
     static_assert(kVHeadDim % 32 == 0);
+    static_assert(kBlockM % kBlockH == 0);
     using TileShape_MNK = Shape<Int<kBlockM>, Int<kBlockN>, Int<kQKHeadDim>>;
     using TileShape_MNK_V = Shape<Int<kBlockM>, Int<kBlockN>, Int<kVHeadDim>>;
 
@@ -89,6 +178,9 @@ struct Flash_fwd_kernel_traits {
     using ClusterShape_MNK = Shape<Int<kClusterM>, _1, _1>;
 
     static constexpr int kStages = kStages_;
+
+    static constexpr bool Is_split = Is_split_;
+    static constexpr bool No_smem_O = Is_split;
 
     using AtomLayoutMNK = Layout<Shape<Int<kBlockM / 64>, _1, _1>>;
     using TiledMma0 = decltype(cute::make_tiled_mma(
@@ -106,6 +198,19 @@ struct Flash_fwd_kernel_traits {
     using SmemLayoutAtomQ = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, Element,
         decltype(cute::get<0>(TileShape_MNK{})), decltype(cute::get<2>(TileShape_MNK{}))>());
     using SmemLayoutQ = decltype(tile_to_shape(SmemLayoutAtomQ{}, select<0, 2>(TileShape_MNK{})));
+
+    // for gmem -> smem Q copy 
+    using FactoringLayoutQ = Layout<Shape<Int<kBlockM/kBlockH>, Int<kBlockH>, Int<kQKHeadDim>>,
+        Stride<Int<kBlockH>, _1, Int<kBlockM>>>;
+    using FactoringLayoutO = Layout<Shape<Int<kBlockM/kBlockH>, Int<kBlockH>, Int<kVHeadDim>>,
+        Stride<Int<kBlockH>, _1, Int<kBlockM>>>;
+    using TileShapeQCopy = std::conditional_t<(kBlockH > 1),
+        decltype(shape(FactoringLayoutQ{})), decltype(select<0, 2>(TileShape_MNK{}))>;
+    using TileShapeOCopy = std::conditional_t<(kBlockH > 1),
+        decltype(shape(FactoringLayoutO{})), decltype(select<0, 2>(TileShape_MNK_V{}))>;
+
+    using SmemLayoutQCopy = std::conditional_t<(kBlockH > 1),
+        decltype(composition(SmemLayoutQ{}, FactoringLayoutQ{})), SmemLayoutQ>;
 
     using SmemLayoutAtomK = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, Element,
         decltype(cute::get<1>(TileShape_MNK{})), decltype(cute::get<2>(TileShape_MNK{}))>());
@@ -125,15 +230,19 @@ struct Flash_fwd_kernel_traits {
                     make_ordered_layout(
                         make_shape(get<2>(TileShape_MNK_V{}), get<1>(TileShape_MNK_V{}), Int<kStages>{}),
                         Step<_2, _1, _3>{})));
-
+    
     using SmemLayoutAtomO = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, OutputType,
         decltype(cute::get<0>(TileShape_MNK_V{})), decltype(cute::get<2>(TileShape_MNK_V{}))>());
     using SmemLayoutO = decltype(tile_to_shape(SmemLayoutAtomO{}, select<0, 2>(TileShape_MNK_V{})));
+    // for smem -> gmem O copy
+    using SmemLayoutOCopy = std::conditional_t<(kBlockH > 1),
+        decltype(composition(SmemLayoutO{}, FactoringLayoutO{})), SmemLayoutO>;
 
     using SmemCopyAtomQ = Copy_Atom<cute::SM75_U32x4_LDSM_N, Element>;
 
-    using SharedStorage = SharedStorageQKVO<kStages, Element, Element, Element, SmemLayoutQ,
-                                            SmemLayoutK, SmemLayoutV, SmemLayoutO>;
+    using SharedStorage = std::conditional_t<!No_smem_O,
+        SharedStorageQKVO<kStages, Element, Element, OutputType, SmemLayoutQ, SmemLayoutK, SmemLayoutV, SmemLayoutO>,
+        SharedStorageQKV<kStages, Element, Element, SmemLayoutQ, SmemLayoutK, SmemLayoutV>>;
 
     using MainloopPipeline = typename cutlass::PipelineTmaAsync<kStages>;
     using MainloopPipelineNoTMA = typename cutlass::PipelineAsync<kStages>;
@@ -144,13 +253,19 @@ struct Flash_fwd_kernel_traits {
 
 // Traits struct for fp8 kernel with in-kernel transpose
 template<int kQKHeadDim_, int kVHeadDim_, int kBlockM_, int kBlockN_, int kNWarps_, int kStages_, bool Is_Q_in_regs_=false,
-         int kClusterM_ = 1, typename elem_type=cutlass::float_e4m3_t>
+         int kClusterM_ = 1, typename elem_type=cutlass::float_e4m3_t, bool Is_split_ = false, int kBlockH_ = 1>
 struct Flash_fwd_kernel_traits_fp8 {
     using Element = elem_type;
     static_assert(cutlass::sizeof_bits_v<Element> == 8);
     using ElementAccum = float;
-    using OutputType = cutlass::half_t;
-    using index_t = int64_t;      
+    using FinalOutputType = cutlass::bfloat16_t;
+    using OutputType = std::conditional_t<Is_split_, float, FinalOutputType>;
+    using index_t = int64_t;
+
+    static constexpr bool Is_split = Is_split_;
+    static constexpr bool No_smem_O = false;
+    // NOTE: not using smem for epilogue degrades perf substantially.
+    // static constexpr bool No_smem_O = Is_split;
 
     // The number of threads.
     static constexpr int kNWarps = kNWarps_;
@@ -158,16 +273,18 @@ struct Flash_fwd_kernel_traits_fp8 {
     static constexpr int NumProducerThreads = cutlass::NumThreadsPerWarpGroup;
 
     static constexpr bool Is_Q_in_regs = Is_Q_in_regs_;
-    static_assert(kNWarps_ == 12 || kNWarps_ == 16);
+    static_assert(kNWarps_ == 8 || kNWarps_ == 12 || kNWarps_ == 16);
     static constexpr bool Is_WS = true;    
     static_assert(!Is_Q_in_regs, "Warp-specialization does not support Q in registers");    
 
     static constexpr int kBlockM = kBlockM_;
     static constexpr int kBlockN = kBlockN_;
+     static constexpr int kBlockH = kBlockH_;
     static constexpr int kQKHeadDim = kQKHeadDim_;
     static constexpr int kVHeadDim = kVHeadDim_;
     static_assert(kQKHeadDim % 32 == 0);
     static_assert(kVHeadDim % 32 == 0);
+    static_assert(kBlockM % kBlockH == 0);
     using TileShape_MNK = Shape<Int<kBlockM>, Int<kBlockN>, Int<kQKHeadDim>>;
     using TileShape_MNK_V = Shape<Int<kBlockM>, Int<kBlockN>, Int<kVHeadDim>>;
 
@@ -176,6 +293,9 @@ struct Flash_fwd_kernel_traits_fp8 {
 
     static constexpr int kStages = kStages_;
     static_assert(kStages > 1);
+
+    // Use this to save enough smem when writing out in float precision.
+    static constexpr bool VO_union_all = Is_split && (kBlockM != 64) && (kVHeadDim == 256);
 
     using AtomLayoutMNK = Layout<Shape<Int<kBlockM / 64>, _1, _1>>;    
     using TiledMma0 = decltype(cute::make_tiled_mma(
@@ -189,6 +309,18 @@ struct Flash_fwd_kernel_traits_fp8 {
     using SmemLayoutAtomQ = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, Element,
         decltype(cute::get<0>(TileShape_MNK{})), decltype(cute::get<2>(TileShape_MNK{}))>());
     using SmemLayoutQ = decltype(tile_to_shape(SmemLayoutAtomQ{}, select<0, 2>(TileShape_MNK{})));
+
+    // for gmem -> smem Q copy
+    using FactoringLayoutQ = Layout<Shape<Int<kBlockM/kBlockH>, Int<kBlockH>, Int<kQKHeadDim>>,
+        Stride<Int<kBlockH>, _1, Int<kBlockM>>>;
+    using FactoringLayoutO = Layout<Shape<Int<kBlockM/kBlockH>, Int<kBlockH>, Int<kVHeadDim>>,
+        Stride<Int<kBlockH>, _1, Int<kBlockM>>>;
+    using TileShapeQCopy = std::conditional_t<(kBlockH > 1),
+        decltype(shape(FactoringLayoutQ{})), decltype(select<0, 2>(TileShape_MNK{}))>;
+    using TileShapeOCopy = std::conditional_t<(kBlockH > 1),
+        decltype(shape(FactoringLayoutQ{})), decltype(select<0, 2>(TileShape_MNK_V{}))>;
+    using SmemLayoutQCopy = std::conditional_t<(kBlockH > 1),
+        decltype(composition(SmemLayoutQ{}, FactoringLayoutQ{})), SmemLayoutQ>;
 
     using SmemLayoutAtomK = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, Element,
         decltype(cute::get<1>(TileShape_MNK{})), decltype(cute::get<2>(TileShape_MNK{}))>());
@@ -232,6 +364,8 @@ struct Flash_fwd_kernel_traits_fp8 {
     using SmemLayoutAtomO = decltype(cutlass::gemm::collective::detail::ss_smem_selector<GMMA::Major::K, OutputType,
         decltype(cute::get<0>(TileShape_MNK_V{})), decltype(cute::get<2>(TileShape_MNK_V{}))>());
     using SmemLayoutO = decltype(tile_to_shape(SmemLayoutAtomO{}, select<0, 2>(TileShape_MNK_V{})));
+    using SmemLayoutOCopy = std::conditional_t<(kBlockH > 1),
+        decltype(composition(SmemLayoutO{}, FactoringLayoutO{})), SmemLayoutO>;
 
     // used for rmem -> smem O copy in fp8 kernel to undo column permutation
     using ThreadLayoutrO = Layout<Shape<_8, Int<kBlockM/16>, _4, _1>,
@@ -246,8 +380,11 @@ struct Flash_fwd_kernel_traits_fp8 {
 
     using SmemCopyAtomQ = Copy_Atom<cute::SM75_U32x4_LDSM_N, Element>;
 
-    using SharedStorage = SharedStorageQKVOVt<kStages, Element, Element, OutputType, SmemLayoutQ,
-                          SmemLayoutK, SmemLayoutV, SmemLayoutO>;
+    using SharedStorage = std::conditional_t<!No_smem_O,
+        std::conditional_t<!VO_union_all,
+            SharedStorageQKVOVt<kStages, Element, Element, OutputType, SmemLayoutQ, SmemLayoutK, SmemLayoutV, SmemLayoutO>,
+            SharedStorageQKVOVtaccum<kStages, Element, Element, OutputType, SmemLayoutQ, SmemLayoutK, SmemLayoutV, SmemLayoutO>>,
+        SharedStorageQKVVt<kStages, Element, Element, SmemLayoutQ, SmemLayoutK, SmemLayoutV>>;
 
     using MainloopPipeline = typename cutlass::PipelineTmaAsync<kStages>;
     using MainloopPipelineNoTMA = typename cutlass::PipelineAsync<kStages>;
