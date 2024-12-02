@@ -53,7 +53,7 @@ else:
 PACKAGE_NAME = "flex_head_fa"
 
 BASE_WHEEL_URL = (
-    "https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}"
+    "https://github.com/xiayuqing0622/flex_head_fa/releases/download/{tag_name}/{wheel_name}"
 )
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
@@ -63,9 +63,10 @@ SKIP_CUDA_BUILD = os.getenv("FLASH_ATTENTION_SKIP_CUDA_BUILD", "FALSE") == "TRUE
 # For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
 FORCE_CXX11_ABI = os.getenv("FLASH_ATTENTION_FORCE_CXX11_ABI", "FALSE") == "TRUE"
 
+BUILD_LOCALLY = os.getenv("BUILD_LOCALLY", "FALSE") == "TRUE"
 list_headdim = []
 compile_list_headdim = []
-if not SKIP_CUDA_BUILD and not IS_ROCM:
+if BUILD_LOCALLY and not SKIP_CUDA_BUILD and not IS_ROCM:
     with open('headdim.json', 'r') as file:
         list_headdim = json.load(file)
     # "csrc/flash_attn/src/flash_fwd_qkdim32_vdim64_fp16_sm80.cu"
@@ -454,7 +455,6 @@ def get_wheel_url():
         wheel_filename = f"{PACKAGE_NAME}-{flash_version}+cu{cuda_version}torch{torch_version}cxx11abi{cxx11_abi}-{python_version}-{python_version}-{platform_name}.whl"
 
     wheel_url = BASE_WHEEL_URL.format(tag_name=f"v{flash_version}", wheel_name=wheel_filename)
-
     return wheel_url, wheel_filename
 
 
@@ -525,15 +525,15 @@ setup(
             "dist",
             "docs",
             "benchmarks",
-            "flash_attn.egg-info",
+            "flex_head_fa.egg-info",
         )
     ),
-    author="Tri Dao",
-    author_email="tri@tridao.me",
-    description="Flash Attention: Fast and Memory-Efficient Exact Attention",
+    author="Yuqing Xia",
+    author_email="xiayuqing0622@outlook.com",
+    description="FlexHeadFA: Flash Attention with flexible head dimensions",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Dao-AILab/flash-attention",
+    url="https://github.com/xiayuqing0622/flex_head_fa",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
