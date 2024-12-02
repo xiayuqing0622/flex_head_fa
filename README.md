@@ -62,7 +62,7 @@ from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func # Flash
 
 We test the performance speedup compare to padding qk&v hidden_dim on A100.
 
-We display CustomFlashAttention speedup using these parameters:
+We display FlexHeadFA speedup using these parameters:
 
 - (qk dim, v_dim): (32,64), (64,128), (128,256); qk hidden dimension 2048 (i.e. 64, 32 or 16 heads).
 - Sequence length 512, 1k, 2k, 4k, 8k, 16k.
