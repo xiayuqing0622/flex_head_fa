@@ -6,19 +6,19 @@ import torch.nn.functional as F
 
 from einops import rearrange, repeat
 
-# from flash_attn.utils.benchmark import benchmark_forward, benchmark_backward, benchmark_combined, benchmark_all, benchmark_fwd_bwd, pytorch_profiler
-from flash_attn.utils.benchmark import benchmark_forward, benchmark_backward, benchmark_combined, benchmark_all, benchmark_fwd_bwd, pytorch_profiler
-from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
-# # from flash_attn.triton.fused_attention import attention as attention
-# from flash_attn.flash_attn_triton import flash_attn_qkvpacked_func
-# from flash_attn.flash_attn_triton_og import attention as attention_og
+# from flex_head_fa.utils.benchmark import benchmark_forward, benchmark_backward, benchmark_combined, benchmark_all, benchmark_fwd_bwd, pytorch_profiler
+from flex_head_fa.utils.benchmark import benchmark_forward, benchmark_backward, benchmark_combined, benchmark_all, benchmark_fwd_bwd, pytorch_profiler
+from flex_head_fa.flash_attn_interface import flash_attn_varlen_qkvpacked_func
+# # from flex_head_fa.triton.fused_attention import attention as attention
+# from flex_head_fa.flash_attn_triton import flash_attn_qkvpacked_func
+# from flex_head_fa.flash_attn_triton_og import attention as attention_og
 
 # from triton.ops.flash_attention import attention as attention_triton
 
-from flash_attn import flash_attn_qkvpacked_func, flash_attn_kvpacked_func
+from flex_head_fa import flash_attn_qkvpacked_func, flash_attn_kvpacked_func
 
 try:
-    from flash_attn.fused_softmax import scaled_upper_triang_masked_softmax
+    from flex_head_fa.fused_softmax import scaled_upper_triang_masked_softmax
 except ImportError:
     scaled_upper_triang_masked_softmax = None
 

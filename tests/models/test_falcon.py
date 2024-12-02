@@ -9,11 +9,11 @@ current_dir = Path(__file__).parent.absolute()
 import pytest
 import torch
 from einops import rearrange
-from flash_attn.models.falcon import falcon_config_to_gpt2_config, remap_state_dict_hf_falcon
-from flash_attn.models.gpt import GPTLMHeadModel, combine_state_dicts_tp, shard_state_dict_tp
-from flash_attn.utils.distributed import all_gather_raw
-from flash_attn.utils.generation import update_graph_cache
-from flash_attn.utils.pretrained import state_dict_from_pretrained
+from flex_head_fa.models.falcon import falcon_config_to_gpt2_config, remap_state_dict_hf_falcon
+from flex_head_fa.models.gpt import GPTLMHeadModel, combine_state_dicts_tp, shard_state_dict_tp
+from flex_head_fa.utils.distributed import all_gather_raw
+from flex_head_fa.utils.generation import update_graph_cache
+from flex_head_fa.utils.pretrained import state_dict_from_pretrained
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 

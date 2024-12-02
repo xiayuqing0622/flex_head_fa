@@ -16,9 +16,9 @@ from einops import einsum, rearrange
 
 import math
 
-# from customized_flash_attn import flash_attn_func
+
 # from flash_attn import flash_attn_func as flash_attn2_func
-from flash_attn import flash_attn_func 
+from flex_head_fa import flash_attn_func 
 # from flash_attn_interface import flash_attn_f3b2_func as flash_attn_func_hopper
 from flash_attn_interface import flash_attn_func as flash_attn_func_hopper
 # torch.manual_seed(55)
