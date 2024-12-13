@@ -455,6 +455,7 @@ def get_wheel_url():
         wheel_filename = f"{PACKAGE_NAME}-{flash_version}+cu{cuda_version}torch{torch_version}cxx11abi{cxx11_abi}-{python_version}-{python_version}-{platform_name}.whl"
 
     wheel_url = BASE_WHEEL_URL.format(tag_name=f"v{flash_version}", wheel_name=wheel_filename)
+    print(wheel_url)
     return wheel_url, wheel_filename
 
 
@@ -484,7 +485,8 @@ class CachedWheelsCommand(_bdist_wheel):
             impl_tag, abi_tag, plat_tag = self.get_tag()
             archive_basename = f"{self.wheel_dist_name}-{impl_tag}-{abi_tag}-{plat_tag}"
 
-            wheel_path = os.path.join(self.dist_dir, archive_basename + ".whl")
+            # wheel_path = os.path.join(self.dist_dir, archive_basename + ".whl")
+            wheel_path = os.path.join(self.dist_dir, wheel_filename)
             print("Raw wheel path", wheel_path)
             os.rename(wheel_filename, wheel_path)
         except (urllib.error.HTTPError, urllib.error.URLError):
