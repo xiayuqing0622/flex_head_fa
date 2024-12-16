@@ -1,5 +1,5 @@
 import torch
-from flash_attn.utils.benchmark import benchmark_forward
+from flex_head_fa.utils.benchmark import benchmark_forward
 
 # batch_size = 4
 # seqlen = 2048

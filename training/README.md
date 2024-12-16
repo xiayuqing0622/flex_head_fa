@@ -37,7 +37,7 @@ The GPT model is implemented
 And here's an example to construct the GPT3-1.3B model with rotary embedding:
 ```python
 from transformers.models.gpt2.configuration_gpt2 import GPT2Config
-from flash_attn.models.gpt import GPTLMHeadModel
+from flex_head_fa.models.gpt import GPTLMHeadModel
 
 seqlen = 2048
 hidden_dim = 2048

@@ -9,10 +9,10 @@ import torch.nn.functional as F
 
 from einops import rearrange, repeat
 
-from flash_attn.utils.benchmark import benchmark_all, benchmark_forward, benchmark_backward
-from flash_attn.utils.benchmark import benchmark_fwd_bwd, benchmark_combined
+from flex_head_fa.utils.benchmark import benchmark_all, benchmark_forward, benchmark_backward
+from flex_head_fa.utils.benchmark import benchmark_fwd_bwd, benchmark_combined
 
-from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+from flex_head_fa import flash_attn_qkvpacked_func, flash_attn_func
 
 try:
     from triton.ops.flash_attention import attention as attention_triton

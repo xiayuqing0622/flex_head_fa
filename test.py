@@ -11,7 +11,8 @@ from termcolor import colored
 from einops import einsum, rearrange
 
 import math
-from flash_attn import flash_attn_func 
+from flash_attn import flash_attn_func, flash_attn_with_kvcache
+from flex_head_fa import flash_attn_func as flex_flash_attn_func
 # torch.manual_seed(55)
 
 
@@ -116,6 +117,9 @@ end = torch.cuda.Event(enable_timing=True)
 start.record()
 for i in range(iters):
     output = (flash_attn_func(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal)).transpose(1,2)
+    # qkv= torch.stack((query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2)), dim=2)
+    # print(qkv.shape)
+    # output = (flash_attn_with_kvcache(query1.transpose(1,2), key1.transpose(1,2), value1.transpose(1,2), causal=args.causal)).transpose(1,2)
     if args.test_bwd:
         output.backward(grad)
         dq = query1.grad
@@ -132,7 +136,8 @@ if args.check_pytorch:
     start.record()
     for i in range(iters):
         # torch_output = torch.nn.functional.scaled_dot_product_attention(query, key, value, is_causal=args.causal)
-        torch_output = torch_model(query, key, value, args.causal)    
+        # torch_output = torch_model(query, key, value, args.causal)   
+        torch_output = (flex_flash_attn_func(query.transpose(1,2), key.transpose(1,2), value.transpose(1,2), causal=args.causal)).transpose(1,2) 
         if args.test_bwd:
             torch_output.backward(grad, retain_graph=True)
             torch_dq = query.grad

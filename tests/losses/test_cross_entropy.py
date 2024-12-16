@@ -3,7 +3,7 @@
 import pytest
 import torch
 import torch.nn.functional as F
-from flash_attn.losses.cross_entropy import CrossEntropyLoss
+from flex_head_fa.losses.cross_entropy import CrossEntropyLoss
 
 is_sm8x = torch.cuda.get_device_capability("cuda")[0] >= 8
 

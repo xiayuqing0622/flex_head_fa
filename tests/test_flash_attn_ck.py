@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 from einops import rearrange, repeat
-from flash_attn import (
+from flex_head_fa import (
     flash_attn_func,
     flash_attn_kvpacked_func,
     flash_attn_qkvpacked_func,

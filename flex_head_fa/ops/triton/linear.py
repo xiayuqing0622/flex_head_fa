@@ -7,7 +7,7 @@ import triton
 import triton.language as tl
 from triton.ops.matmul_perf_model import early_config_prune, estimate_matmul_time
 
-from flash_attn.ops.triton.k_activations import (
+from flex_head_fa.ops.triton.k_activations import (
     gelu,
     gelu_approx,
     gelu_approx_grad,

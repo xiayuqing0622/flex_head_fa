@@ -2,7 +2,7 @@ defaults:
   - _self_
   - gpt2model: gpt2-small
 
-_target_: flash_attn.models.gpt.GPTLMHeadModel
+_target_: flex_head_fa.models.gpt.GPTLMHeadModel
 _recursive_: True
 config:
   _target_: transformers.GPT2Config

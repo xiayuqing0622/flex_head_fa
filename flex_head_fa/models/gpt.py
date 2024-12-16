@@ -14,16 +14,16 @@ import torch.nn.functional as F
 from einops import rearrange
 from transformers import GPT2Config
 
-from flash_attn.models.bigcode import remap_state_dict_hf_bigcode
-from flash_attn.models.falcon import remap_state_dict_hf_falcon
-from flash_attn.models.gpt_neox import remap_state_dict_hf_gpt_neox
-from flash_attn.models.gptj import remap_state_dict_hf_gptj
-from flash_attn.models.llama import remap_state_dict_hf_llama
-from flash_attn.models.opt import remap_state_dict_hf_opt
-from flash_attn.modules.block import Block, ParallelBlock
-from flash_attn.modules.embedding import GPT2Embeddings, ParallelGPT2Embeddings
-from flash_attn.modules.mha import MHA, ParallelMHA
-from flash_attn.modules.mlp import (
+from flex_head_fa.models.bigcode import remap_state_dict_hf_bigcode
+from flex_head_fa.models.falcon import remap_state_dict_hf_falcon
+from flex_head_fa.models.gpt_neox import remap_state_dict_hf_gpt_neox
+from flex_head_fa.models.gptj import remap_state_dict_hf_gptj
+from flex_head_fa.models.llama import remap_state_dict_hf_llama
+from flex_head_fa.models.opt import remap_state_dict_hf_opt
+from flex_head_fa.modules.block import Block, ParallelBlock
+from flex_head_fa.modules.embedding import GPT2Embeddings, ParallelGPT2Embeddings
+from flex_head_fa.modules.mha import MHA, ParallelMHA
+from flex_head_fa.modules.mlp import (
     FusedMLP,
     GatedMlp,
     Mlp,
@@ -31,28 +31,28 @@ from flash_attn.modules.mlp import (
     ParallelGatedMlp,
     ParallelMLP,
 )
-from flash_attn.ops.activations import sqrelu_fwd
-from flash_attn.utils.distributed import (
+from flex_head_fa.ops.activations import sqrelu_fwd
+from flex_head_fa.utils.distributed import (
     all_gather,
     all_gather_raw,
     get_dim_for_local_rank,
     sync_shared_params,
 )
-from flash_attn.utils.generation import GenerationMixin
-from flash_attn.utils.pretrained import state_dict_from_pretrained
+from flex_head_fa.utils.generation import GenerationMixin
+from flex_head_fa.utils.pretrained import state_dict_from_pretrained
 
 try:
-    from flash_attn.ops.fused_dense import ColumnParallelLinear
+    from flex_head_fa.ops.fused_dense import ColumnParallelLinear
 except ImportError:
     ColumnParallelLinear = None
 
 try:
-    from flash_attn.ops.triton.mlp import FusedDenseSqreluDense
+    from flex_head_fa.ops.triton.mlp import FusedDenseSqreluDense
 except ImportError:
     FusedDenseSqreluDense = None
 
 try:
-    from flash_attn.ops.triton.layer_norm import layer_norm_fn, RMSNorm
+    from flex_head_fa.ops.triton.layer_norm import layer_norm_fn, RMSNorm
 except ImportError:
     layer_norm_fn, RMSNorm = None, None
 

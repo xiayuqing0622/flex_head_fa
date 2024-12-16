@@ -7,17 +7,17 @@ from torch.distributed import ProcessGroup
 
 
 try:
-    from flash_attn.ops.activations import swiglu
+    from flex_head_fa.ops.activations import swiglu
 except ImportError:
     swiglu = None
 
 try:
-    from flash_attn.ops.fused_dense import ColumnParallelLinear, RowParallelLinear
+    from flex_head_fa.ops.fused_dense import ColumnParallelLinear, RowParallelLinear
 except ImportError:
     ColumnParallelLinear, RowParallelLinear = None, None
 
 try:
-    from flash_attn.ops.fused_dense import FusedMLP, ParallelFusedMLP
+    from flex_head_fa.ops.fused_dense import FusedMLP, ParallelFusedMLP
 except ImportError:
     FusedMLP, ParallelFusedMLP = None, None
 

@@ -50,10 +50,10 @@ else:
     elif BUILD_TARGET == "rocm":
         IS_ROCM = True
 
-PACKAGE_NAME = "flash_attn"
+PACKAGE_NAME = "flex_head_fa"
 
 BASE_WHEEL_URL = (
-    "https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}"
+    "https://github.com/xiayuqing0622/flex_head_fa/releases/download/{tag_name}/{wheel_name}"
 )
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
@@ -63,9 +63,10 @@ SKIP_CUDA_BUILD = os.getenv("FLASH_ATTENTION_SKIP_CUDA_BUILD", "FALSE") == "TRUE
 # For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
 FORCE_CXX11_ABI = os.getenv("FLASH_ATTENTION_FORCE_CXX11_ABI", "FALSE") == "TRUE"
 
+BUILD_LOCALLY = os.getenv("BUILD_LOCALLY", "FALSE") == "TRUE"
 list_headdim = []
 compile_list_headdim = []
-if not SKIP_CUDA_BUILD and not IS_ROCM:
+if BUILD_LOCALLY and not SKIP_CUDA_BUILD and not IS_ROCM:
     with open('headdim.json', 'r') as file:
         list_headdim = json.load(file)
     # "csrc/flash_attn/src/flash_fwd_qkdim32_vdim64_fp16_sm80.cu"
@@ -176,7 +177,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
     if os.path.exists(os.path.join(torch_dir, "include", "ATen", "CUDAGeneratorImpl.h")):
         generator_flag = ["-DOLD_GENERATOR_PATH"]
 
-    check_if_cuda_home_none("flash_attn")
+    check_if_cuda_home_none("flex_head_fa")
     # Check, if CUDA11 is installed for compute capability 8.0
     cc_flag = []
     if CUDA_HOME is not None:
@@ -202,7 +203,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
         torch._C._GLIBCXX_USE_CXX11_ABI = True
     ext_modules.append(
         CUDAExtension(
-            name="flash_attn_2_cuda",
+            name="flex_head_fa_2_cuda",
             sources=[
                 "csrc/flash_attn/flash_api.cpp",
                 "csrc/flash_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
@@ -346,7 +347,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
     if os.path.exists(os.path.join(torch_dir, "include", "ATen", "CUDAGeneratorImpl.h")):
         generator_flag = ["-DOLD_GENERATOR_PATH"]
 
-    check_if_rocm_home_none("flash_attn")
+    check_if_rocm_home_none("flex_head_fa")
     cc_flag = []
 
     archs = os.getenv("GPU_ARCHS", "native").split(";")
@@ -408,7 +409,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
 
     ext_modules.append(
         CUDAExtension(
-            name="flash_attn_2_cuda",
+            name="flex_head_fa_2_cuda",
             sources=renamed_sources,
             extra_compile_args=extra_compile_args,
             include_dirs=include_dirs,
@@ -417,7 +418,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
 
 
 def get_package_version():
-    with open(Path(this_dir) / "flash_attn" / "__init__.py", "r") as f:
+    with open(Path(this_dir) / "flex_head_fa" / "__init__.py", "r") as f:
         version_match = re.search(r"^__version__\s*=\s*(.*)$", f.read(), re.MULTILINE)
     public_version = ast.literal_eval(version_match.group(1))
     local_version = os.environ.get("FLASH_ATTN_LOCAL_VERSION")
@@ -454,7 +455,7 @@ def get_wheel_url():
         wheel_filename = f"{PACKAGE_NAME}-{flash_version}+cu{cuda_version}torch{torch_version}cxx11abi{cxx11_abi}-{python_version}-{python_version}-{platform_name}.whl"
 
     wheel_url = BASE_WHEEL_URL.format(tag_name=f"v{flash_version}", wheel_name=wheel_filename)
-
+    print(wheel_url)
     return wheel_url, wheel_filename
 
 
@@ -484,7 +485,8 @@ class CachedWheelsCommand(_bdist_wheel):
             impl_tag, abi_tag, plat_tag = self.get_tag()
             archive_basename = f"{self.wheel_dist_name}-{impl_tag}-{abi_tag}-{plat_tag}"
 
-            wheel_path = os.path.join(self.dist_dir, archive_basename + ".whl")
+            # wheel_path = os.path.join(self.dist_dir, archive_basename + ".whl")
+            wheel_path = os.path.join(self.dist_dir, wheel_filename)
             print("Raw wheel path", wheel_path)
             os.rename(wheel_filename, wheel_path)
         except (urllib.error.HTTPError, urllib.error.URLError):
@@ -525,15 +527,15 @@ setup(
             "dist",
             "docs",
             "benchmarks",
-            "flash_attn.egg-info",
+            "flex_head_fa.egg-info",
         )
     ),
-    author="Tri Dao",
-    author_email="tri@tridao.me",
-    description="Flash Attention: Fast and Memory-Efficient Exact Attention",
+    author="Yuqing Xia",
+    author_email="xiayuqing0622@outlook.com",
+    description="FlexHeadFA: Flash Attention with flexible head dimensions",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Dao-AILab/flash-attention",
+    url="https://github.com/xiayuqing0622/flex_head_fa",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
