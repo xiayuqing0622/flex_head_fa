@@ -27,7 +27,7 @@ pip install flex-head-fa --no-build-isolation
 Alternatively you can compile from source:
 
 ```sh
-python setup.py install
+BUILD_LOCALLY=TRUE python setup.py install
 ```
 
 The usage remains the same as FlashAttention-2. You only need to replace `flash_attn` with `flex_head_fa`, as shown below:
@@ -41,7 +41,7 @@ We are also developing FlexHeadFA based on the lastest FLashAttention-3.
 Currently, besides all configurations in FlashAttention-3, we also support
 
 - FlashAttention-3 with QKHeadDim=32, VHeadDim=64
-
+- FlashAttention-3 with QKHeadDim=64, VHeadDim=128
 - FlashAttention-3 forward + FlashAttention-2 backward with QKHeadDim=128, VHeadDim=256 (FlashAttention-3 backward is under development)
 
 Try it with:
