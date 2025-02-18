@@ -141,7 +141,7 @@ public:
     void
     operator()(Params const& params, [[maybe_unused]] char* smem_buf) {
 
-        static constexpr int kBlockM = get<0>(TileShape_MK{});
+        static constexpr int kBlockM = get<0>(TileShape_MK_V{});
 
         int const thread_idx = threadIdx.x;
         int const m_block = blockIdx.x;
@@ -224,8 +224,8 @@ public:
         if (thread_idx < seqlen_rounded - m_block * kBlockM && thread_idx < kBlockM) {
             gLSElog2(thread_idx) = lse == -INFINITY ? 0.f : lse * float(M_LOG2E);
         }
-
-        if constexpr (Clear_dQaccum) {
+        // Bug encountered when qkdim != vdim. 
+            if constexpr (Clear_dQaccum && kQKHeadDim == kVHeadDim) {
             Tensor mdQaccum = make_tensor(make_gmem_ptr(params.ptr_dQaccum), params.shape_dQaccum, params.stride_dQaccum)(_, _, bidh, !is_varlen ? bidb : 0);
             Tensor gdQaccum = local_tile(cute::domain_offset(make_coord(offset_padded, _0{}), mdQaccum), TileShape_MK{}, make_coord(m_block, _0{}));
             GmemTiledCopyAccum gmem_tiled_copy_dQaccum;
