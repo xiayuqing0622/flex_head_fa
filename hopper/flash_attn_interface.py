@@ -225,6 +225,7 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
         ctx.save_for_backward(
             q, k, v, out_padded, softmax_lse, cu_seqlens_q, cu_seqlens_k
         )
+        ctx.headdim_qk = q.shape[-1]
         ctx.max_seqlen_q = max_seqlen_q
         ctx.max_seqlen_k = max_seqlen_k
         ctx.softmax_scale = softmax_scale
@@ -254,8 +255,8 @@ class FlashAttnVarlenFunc(torch.autograd.Function):
             ctx.causal,
             ctx.deterministic,
         )
-        dq = dq[..., : dout.shape[-1]]  # We could have padded the head dimension
-        dk = dk[..., : dout.shape[-1]]
+        dq = dq[..., : ctx.headdim_qk]  # We could have padded the head dimension
+        dk = dk[..., : ctx.headdim_qk]
         dv = dv[..., : dout.shape[-1]]
         return dq, dk, dv, None, None, None, None, None, None, None
 
@@ -583,6 +584,7 @@ class FlashAttnF3B2VarlenFunc(torch.autograd.Function):
         ctx.save_for_backward(
             q, k, v, out_padded, softmax_lse, cu_seqlens_q, cu_seqlens_k
         )
+        ctx.headdim_qk = q.shape[-1]
         ctx.max_seqlen_q = max_seqlen_q
         ctx.max_seqlen_k = max_seqlen_k
         ctx.softmax_scale = softmax_scale
@@ -612,8 +614,8 @@ class FlashAttnF3B2VarlenFunc(torch.autograd.Function):
             ctx.causal,
             ctx.deterministic,
         )
-        dq = dq[..., : dout.shape[-1]]  # We could have padded the head dimension
-        dk = dk[..., : dout.shape[-1]]
+        dq = dq[..., : ctx.headdim_qk]  # We could have padded the head dimension
+        dk = dk[..., : ctx.headdim_qk]
         dv = dv[..., : dout.shape[-1]]
         return dq, dk, dv, None, None, None, None, None, None, None
 
