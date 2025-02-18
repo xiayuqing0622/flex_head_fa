@@ -218,6 +218,19 @@ void run_mha_bwd_qkdim32_vdim64(Flash_bwd_params &params, cudaStream_t stream) {
 }
 
 template<typename T>
+void run_mha_bwd_qkdim64_vdim128(Flash_bwd_params &params, cudaStream_t stream) {
+    constexpr static int QKHeaddim = 64;
+    constexpr static int VHeaddim = 128;
+    BOOL_SWITCH(params.is_causal, Is_causal, [&] {
+        BOOL_SWITCH(params.cu_seqlens_q != nullptr || params.cu_seqlens_k != nullptr, Varlen, [&] {
+            BOOL_SWITCH(params.deterministic, Deterministic, [&] {
+                run_flash_bwd<QKHeaddim, VHeaddim, 64, 128, T, Is_causal, Varlen, Deterministic, false, false, 1, 2, 1>(params, stream);
+            });
+        });
+    });
+}
+
+template<typename T>
 void run_mha_bwd_qkdim128_vdim256(Flash_bwd_params &params, cudaStream_t stream) {
     constexpr static int QKHeaddim = 128;
     constexpr static int VHeaddim = 256;

@@ -247,6 +247,8 @@ void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split
                 run_mha_fwd_<cutlass::bfloat16_t, 128, 256>(params, stream);
             } else if (params.d == 32 && params.vd == 64) {
                 run_mha_fwd_<cutlass::bfloat16_t, 32, 64>(params, stream);
+            } else if (params.d == 64 && params.vd == 128) {
+                run_mha_fwd_<cutlass::bfloat16_t, 64, 128>(params, stream);
             }
         } else {
             if (params.d == 64 && params.vd == 64) {
@@ -259,6 +261,8 @@ void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split
                 run_mha_fwd_<cutlass::half_t, 128, 256>(params, stream);
             } else if (params.d == 32 && params.vd == 64) {
                 run_mha_fwd_<cutlass::half_t, 32, 64>(params, stream);
+            } else if (params.d == 64 && params.vd == 128) {
+                run_mha_fwd_<cutlass::half_t, 64, 128>(params, stream);
             }
         }
     } else {
@@ -652,6 +656,8 @@ void run_mha_bwd(Flash_bwd_params &params, cudaStream_t stream) {
       run_mha_bwd_<cutlass::half_t, 32, 64>(params, stream);
     } else if (params.d <= 64 && params.vd <= 64) {
       run_mha_bwd_<cutlass::half_t, 64, 64>(params, stream);
+    } else if (params.d <= 64 && params.vd <= 128) {
+      run_mha_bwd_<cutlass::half_t, 64, 128>(params, stream);
     } else if (params.d <= 96 && params.vd <= 96) {
       run_mha_bwd_<cutlass::half_t, 96, 96>(params, stream);
     } else if (params.d <= 128 && params.vd <= 128) {
@@ -662,6 +668,8 @@ void run_mha_bwd(Flash_bwd_params &params, cudaStream_t stream) {
       run_mha_bwd_<cutlass::bfloat16_t, 32, 64>(params, stream);
     } else if (params.d <= 64 && params.vd <= 64) {
       run_mha_bwd_<cutlass::bfloat16_t, 64, 64>(params, stream);
+    } else if (params.d <= 64 && params.vd <= 128) {
+      run_mha_bwd_<cutlass::bfloat16_t, 64, 128>(params, stream);
     } else if (params.d <= 96 && params.vd <= 96) {
       run_mha_bwd_<cutlass::bfloat16_t, 96, 96>(params, stream);
     } else if (params.d <= 128 && params.vd <= 128) {

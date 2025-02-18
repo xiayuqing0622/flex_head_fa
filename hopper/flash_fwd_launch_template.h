@@ -260,6 +260,23 @@ void run_mha_fwd_qkdim32_vdim64(Flash_fwd_params &params, cudaStream_t stream) {
 }
 
 template<typename T>
+void run_mha_fwd_qkdim64_vdim128(Flash_fwd_params &params, cudaStream_t stream) {
+    constexpr static int QKHeaddim = 64;
+    constexpr static int VHeaddim = 128;
+    BOOL_SWITCH(params.is_causal, Is_causal, [&] {
+        SEQLEN_SWITCH(params.cu_seqlens_q, Seqlen_traits, [&] {
+            // Only use Cluster if number of tiles along seqlen_q is even and not Is_causal
+            BOOL_SWITCH(cutlass::ceil_div(params.seqlen_q, 128) % 2 == 0 && !Is_causal && !Seqlen_traits::kUseVarSeqLen, UseCluster, [&] {
+                run_flash_fwd<
+                    Flash_fwd_kernel_traits<QKHeaddim, VHeaddim, 128, Is_causal ? 128 : 176, 12, 2, false, UseCluster ? 2 : 1, T>, 
+                    Is_causal, Seqlen_traits
+                >(params, stream);
+            });
+        });
+    });
+}
+
+template<typename T>
 void run_mha_fwd_qkdim128_vdim256(Flash_fwd_params &params, cudaStream_t stream) {
     constexpr static int QKHeaddim = 128;
     constexpr static int VHeaddim = 256;
