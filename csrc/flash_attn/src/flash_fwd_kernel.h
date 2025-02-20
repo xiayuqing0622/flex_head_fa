@@ -495,7 +495,7 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>
+template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_attn_bias, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>
 inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, const int bidb, const int bidh, const int m_block, const int n_split_idx, const int num_n_splits) {
 
     using Element = typename Kernel_traits::Element;
@@ -631,6 +631,21 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
 
     Tensor acc_o = partition_fragment_C(tiled_mma, Shape<Int<kBlockM>, Int<kHeadDim>>{});  // MMA, MMA_M, MMA_K
 
+    // Attn bias
+    const index_t row_offset_attn_bias = bidb * params.attn_bias_batch_stride +
+        + bidh * params.attn_bias_head_stride + (m_block * kBlockM) * params.attn_bias_q_stride
+        + (n_block_max - 1) * kBlockN;
+    Tensor gB = make_tensor(make_gmem_ptr(reinterpret_cast<Element *>(params.attn_bias_ptr) + row_offset_attn_bias),
+                    Shape<Int<kBlockM>, Int<kBlockN>>{},
+                    make_stride(params.attn_bias_q_stride, _1{})); // (BLK_M,BLK_N)
+    Tensor sB = make_tensor(sV.data() + size(sV), typename Kernel_traits::SmemLayoutB{});
+
+    typename Kernel_traits::GmemTiledCopyB gmem_tiled_copy_B;
+    auto gmem_thr_copy_B = gmem_tiled_copy_B.get_thread_slice(tidx);
+
+    Tensor tBgB = gmem_thr_copy_B.partition_S(gB);
+    Tensor tBsB = gmem_thr_copy_B.partition_D(sB);
+
     //
     // Copy Atom retiling
     //
@@ -646,6 +661,12 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
     auto smem_tiled_copy_V = make_tiled_copy_B(typename Kernel_traits::SmemCopyAtomTransposed{}, tiled_mma);
     auto smem_thr_copy_V = smem_tiled_copy_V.get_thread_slice(tidx);
     Tensor tOsVt = smem_thr_copy_V.partition_S(sVt);
+    // attn bias
+    auto smem_tiled_copy_B = make_tiled_copy_C(typename Kernel_traits::SmemCopyAtomB{}, tiled_mma);
+    auto smem_thr_copy_B = smem_tiled_copy_B.get_thread_slice(tidx);
+    Tensor tSsB = smem_thr_copy_B.partition_S(sB);
+    Tensor tBrB = thr_mma.partition_fragment_C(sB);
+    Tensor tBrB_copy_view = smem_thr_copy_B.retile_D(tBrB);
 
     // PREDICATES
     //
@@ -824,6 +845,11 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
     // We don't need to clear the sK smem tiles since we'll mask out the scores anyway.
     FLASH_NAMESPACE::copy<Is_even_MN, Is_even_K>(gmem_tiled_copy_QKV, tKgK, tKsK, tKVcKV, tKVpKV,
                                        binfo.actual_seqlen_k - n_block * kBlockN);
+
+    if (Has_attn_bias)
+    {
+        cute::copy(gmem_tiled_copy_B, tBgB, tBsB);
+    }
     cute::cp_async_fence();
 
     // FLASH_NAMESPACE::cp_async_wait<0>();
@@ -874,6 +900,9 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
                 gmem_tiled_copy_QKV, tVgV, tVsV, tKVcKV, tKVpKV, binfo.actual_seqlen_k - n_block * kBlockN
             );
         }
+        if (Has_attn_bias) {
+            cute::copy(smem_tiled_copy_B, tSsB, tBrB_copy_view);
+        }
         cute::cp_async_fence();
 
         FLASH_NAMESPACE::gemm(
@@ -890,6 +919,9 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
             acc_s, n_block * kBlockN, m_block * kBlockM + (tidx / 32) * 16 + (tidx % 32) / 4, kNWarps * 16
         );
 
+        if (Has_attn_bias) {
+            flash::apply_attn_bias(acc_s, tBrB);
+        }
         FLASH_NAMESPACE::cp_async_wait<0>();
         __syncthreads();
         // if (tidx == 0 && blockIdx.y == 0 && blockIdx.z == 0) { print(tVsV); }
@@ -907,6 +939,11 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
                 tKgK.data() = tKgK.data() + (block_table[block_table_idx_next] - block_table[block_table_idx_cur]) * params.k_batch_stride + (block_table_offset_next - block_table_offset_cur) * params.k_row_stride;
             }
             FLASH_NAMESPACE::copy</*Is_even_MN=*/true, Is_even_K>(gmem_tiled_copy_QKV, tKgK, tKsK, tKVcKV, tKVpKV);
+            //Advance gB
+            if (Has_attn_bias) {
+                tBgB.data() = tBgB.data() + (-kBlockN);
+                cute::copy(gmem_tiled_copy_B, tBgB, tBsB);
+            }
             // This cp_async_fence needs to be in the if block, otherwise the synchronization
             // isn't right and we get race conditions.
             cute::cp_async_fence();
@@ -950,6 +987,9 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
             tVgV.data() = tVgV.data() + (block_table[block_table_idx_next] - block_table[block_table_idx_cur]) * params.v_batch_stride + (block_table_offset_next - block_table_offset_cur) * params.v_row_stride;
         }
         FLASH_NAMESPACE::copy</*Is_even_MN=*/true, Is_even_K>(gmem_tiled_copy_QKV, tVgV, tVsV, tKVcKV, tKVpKV);
+        if (Has_attn_bias) {
+            cute::copy(smem_tiled_copy_B, tSsB, tBrB_copy_view);
+        }
         cute::cp_async_fence();
 
         FLASH_NAMESPACE::gemm(
@@ -958,6 +998,10 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
         );
         if constexpr (Is_softcap){
             FLASH_NAMESPACE::apply_softcap(acc_s, params.softcap);
+        }
+        // Apply attention biases
+        if (Has_attn_bias) {
+            flash::apply_attn_bias(acc_s, tBrB);
         }
 
         FLASH_NAMESPACE::cp_async_wait<0>();
@@ -977,6 +1021,12 @@ inline __device__ void compute_attn_1rowblock_splitkv(const Params &params, cons
             // This cp_async_fence needs to be in the if block, otherwise the synchronization
             // isn't right and we get race conditions.
             cute::cp_async_fence();
+            //Advance gB
+            if (Has_attn_bias) {
+                tBgB.data() = tBgB.data() + (-kBlockN);
+                cute::copy(gmem_tiled_copy_B, tBgB, tBsB);
+                cute::cp_async_fence();
+            }
         }
 
         mask.template apply_mask</*Causal_mask=*/false>(
@@ -1093,7 +1143,7 @@ inline __device__ void compute_attn(const Params &params) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>
+template<typename Kernel_traits, bool Is_causal, bool Is_local, bool Has_attn_bias, bool Has_alibi, bool Is_even_MN, bool Is_even_K, bool Is_softcap, bool Split, bool Append_KV, typename Params>
 inline __device__ void compute_attn_splitkv(const Params &params) {
     const int m_block = blockIdx.x;
     // The block index for the batch.
@@ -1102,7 +1152,7 @@ inline __device__ void compute_attn_splitkv(const Params &params) {
     const int bidh = Split ? blockIdx.z - bidb * params.h : blockIdx.z;
     const int n_split_idx = Split ? blockIdx.y : 0;
     const int num_n_splits = Split ? gridDim.y : 1;
-    FLASH_NAMESPACE::compute_attn_1rowblock_splitkv<Kernel_traits, Is_causal, Is_local, Has_alibi, Is_even_MN, Is_even_K, Is_softcap, Split, Append_KV>(params, bidb, bidh, m_block, n_split_idx, num_n_splits);
+    FLASH_NAMESPACE::compute_attn_1rowblock_splitkv<Kernel_traits, Is_causal, Is_local, Has_attn_bias, Has_alibi, Is_even_MN, Is_even_K, Is_softcap, Split, Append_KV>(params, bidb, bidh, m_block, n_split_idx, num_n_splits);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -56,6 +56,14 @@ struct Flash_fwd_params : public Qkv_params {
     index_t o_row_stride;
     index_t o_head_stride;
 
+    // The attn_bias matrix.
+    void * __restrict__ attn_bias_ptr;
+
+    // The stride between rows of attn_bias.
+    index_t attn_bias_batch_stride;
+    index_t attn_bias_q_stride;
+    index_t attn_bias_head_stride;
+
     // The pointer to the P matrix.
     void * __restrict__ p_ptr;
 

@@ -11,6 +11,21 @@ namespace FLASH_NAMESPACE {
 
 using namespace cute;
 
+template <typename Engine0, typename Layout0, typename Engine1, typename Layout1>
+inline __device__ void apply_attn_bias(Tensor<Engine0, Layout0> &tensor, Tensor<Engine1, Layout1> &bias_fragment) {
+
+    #pragma unroll
+    for (int mma = 0; mma < size<0>(tensor); ++mma) {
+        #pragma unroll
+        for (int i = 0; i < size<1>(tensor); ++i) {
+            #pragma unroll
+            for (int j = 0; j < size<2>(tensor); ++j) {
+                tensor(mma, i, j) += bias_fragment(mma, i, j);
+            }
+        }
+    }
+}
+
 template <typename Engine, typename Layout>
 __forceinline__ __device__ void apply_mask(Tensor<Engine, Layout> &tensor, const int max_seqlen_k,
                                   const int col_idx_offset_ = 0) {
