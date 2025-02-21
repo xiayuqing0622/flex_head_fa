@@ -199,7 +199,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
             name="flash_attn_2_cuda",
             sources=[
                 "csrc/flash_attn/flash_api.cpp",
-                "csrc/flash_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
+                # "csrc/flash_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_hdim32_bf16_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_hdim64_fp16_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_hdim64_bf16_sm80.cu",
@@ -276,7 +276,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
                 # "csrc/flash_attn/src/flash_fwd_split_hdim96_fp16_causal_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_split_hdim96_bf16_causal_sm80.cu",
                 "csrc/flash_attn/src/flash_fwd_split_hdim128_fp16_causal_sm80.cu",
-                # "csrc/flash_attn/src/flash_fwd_split_hdim128_bf16_causal_sm80.cu",
+                "csrc/flash_attn/src/flash_fwd_split_hdim128_bf16_causal_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_split_hdim160_fp16_causal_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_split_hdim160_bf16_causal_sm80.cu",
                 # "csrc/flash_attn/src/flash_fwd_split_hdim192_fp16_causal_sm80.cu",
