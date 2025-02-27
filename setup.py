@@ -50,10 +50,10 @@ else:
     elif BUILD_TARGET == "rocm":
         IS_ROCM = True
 
-PACKAGE_NAME = "flash_attn"
+PACKAGE_NAME = "fa_with_bias"
 
 BASE_WHEEL_URL = (
-    "https://github.com/Dao-AILab/flash-attention/releases/download/{tag_name}/{wheel_name}"
+    "https://github.com/xiayuqing0622/flex_head_fa/releases/download/{tag_name}/{wheel_name}"
 )
 
 # FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
@@ -164,7 +164,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
     TORCH_MAJOR = int(torch.__version__.split(".")[0])
     TORCH_MINOR = int(torch.__version__.split(".")[1])
 
-    check_if_cuda_home_none("flash_attn")
+    check_if_cuda_home_none("flex_head_fa")
     # Check, if CUDA11 is installed for compute capability 8.0
     cc_flag = []
     if CUDA_HOME is not None:
@@ -196,7 +196,7 @@ if not SKIP_CUDA_BUILD and not IS_ROCM:
         torch._C._GLIBCXX_USE_CXX11_ABI = True
     ext_modules.append(
         CUDAExtension(
-            name="flash_attn_2_cuda",
+            name="fa_with_bias_2_cuda",
             sources=[
                 "csrc/flash_attn/flash_api.cpp",
                 # "csrc/flash_attn/src/flash_fwd_hdim32_fp16_sm80.cu",
@@ -344,7 +344,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
         if os.path.exists(os.path.join(torch_dir, "include", "ATen", "CUDAGeneratorImpl.h")):
             generator_flag = ["-DOLD_GENERATOR_PATH"]
 
-        check_if_rocm_home_none("flash_attn")
+        check_if_rocm_home_none("flex_head_fa")
         archs = os.getenv("GPU_ARCHS", "native").split(";")
         validate_and_update_archs(archs)
 
@@ -418,7 +418,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
 
         ext_modules.append(
             CUDAExtension(
-                name="flash_attn_2_cuda",
+                name="fa_with_bias_2_cuda",
                 sources=renamed_sources,
                 extra_compile_args=extra_compile_args,
                 include_dirs=include_dirs,
@@ -427,7 +427,7 @@ elif not SKIP_CUDA_BUILD and IS_ROCM:
 
 
 def get_package_version():
-    with open(Path(this_dir) / "flash_attn" / "__init__.py", "r") as f:
+    with open(Path(this_dir) / "fa_with_bias" / "__init__.py", "r") as f:
         version_match = re.search(r"^__version__\s*=\s*(.*)$", f.read(), re.MULTILINE)
     public_version = ast.literal_eval(version_match.group(1))
     local_version = os.environ.get("FLASH_ATTN_LOCAL_VERSION")
@@ -535,15 +535,15 @@ setup(
             "dist",
             "docs",
             "benchmarks",
-            "flash_attn.egg-info",
+            "fa_with_bias.egg-info",
         )
     ),
-    author="Tri Dao",
-    author_email="tri@tridao.me",
-    description="Flash Attention: Fast and Memory-Efficient Exact Attention",
+    author="Yuqing Xia",
+    author_email="xiayuqing0622@outlook.com",
+    description="FlexHeadFA: Flash Attention with flexible head dimensions",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Dao-AILab/flash-attention",
+    url="https://github.com/xiayuqing0622/flex_head_fa",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",

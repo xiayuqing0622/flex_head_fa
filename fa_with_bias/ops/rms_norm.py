@@ -4,7 +4,7 @@
 import torch
 from torch.nn import init
 
-from flash_attn.ops.layer_norm import (
+from fa_with_bias.ops.layer_norm import (
     DropoutAddLayerNormFn,
     DropoutAddLayerNormParallelResidualFn,
     DropoutAddLayerNormSubsetFn,

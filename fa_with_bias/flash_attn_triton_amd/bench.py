@@ -1,12 +1,12 @@
 import argparse
 import torch
 import triton
-from flash_attn.flash_attn_triton_amd.utils import (
+from fa_with_bias.flash_attn_triton_amd.utils import (
     MetaData,
     input_helper,
     varlen_input_helper,
 )
-from flash_attn.flash_attn_triton_amd.interface_torch import attention_prefill, attention_decode
+from fa_with_bias.flash_attn_triton_amd.interface_torch import attention_prefill, attention_decode
 
 ARGS_TO_TORCH_DTYPE = {
     "fp16": torch.float16,

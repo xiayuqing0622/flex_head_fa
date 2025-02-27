@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange, repeat
 
-from flash_attn.utils.distributed import get_dim_for_local_rank
+from fa_with_bias.utils.distributed import get_dim_for_local_rank
 
 try:
     from flash_attn import (
@@ -23,12 +23,12 @@ except ImportError:
     flash_attn_with_kvcache = None
 
 try:
-    from flash_attn.ops.fused_dense import ColumnParallelLinear, FusedDense, RowParallelLinear
+    from fa_with_bias.ops.fused_dense import ColumnParallelLinear, FusedDense, RowParallelLinear
 except ImportError:
     FusedDense, ColumnParallelLinear, RowParallelLinear = None, None, None
 
 try:
-    from flash_attn.layers.rotary import RotaryEmbedding
+    from fa_with_bias.layers.rotary import RotaryEmbedding
 except ImportError:
     RotaryEmbedding = None
 

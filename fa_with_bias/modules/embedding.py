@@ -5,7 +5,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 
-from flash_attn.utils.distributed import all_reduce, reduce_scatter
+from fa_with_bias.utils.distributed import all_reduce, reduce_scatter
 
 
 class GPT2Embeddings(nn.Module):

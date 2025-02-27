@@ -14,8 +14,8 @@ from torch import Tensor
 from torch.cuda.amp import custom_bwd, custom_fwd
 from torch.distributed import ProcessGroup
 
-from flash_attn.ops.activations import gelu_bwd, relu_bwd, sqrelu_bwd, sqrelu_fwd
-from flash_attn.utils.distributed import (
+from fa_with_bias.ops.activations import gelu_bwd, relu_bwd, sqrelu_bwd, sqrelu_fwd
+from fa_with_bias.utils.distributed import (
     all_gather_raw,
     all_reduce,
     all_reduce_raw,
